@@ -422,9 +422,27 @@ const confirmBooking = async (req, res) => {
       });
     }
 
+    const meeting = await createGoogleMeet({
+      summary: "Scheduled Class",
+      description: `Here is your next meeting for your ${booking.subject} session.` ,
+      startTime,
+      endTime,
+      attendees: [booking.teacher, booking.student],
+    });
+
+    if (!meeting){
+    res.status(500).json({
+      message: "Error while creating meeting Link",
+    });
+    }
+
+    const meetingLink = meeting.hanoutLink;
+
     const confirmedBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "confirmed" },
+      { status: "confirmed",
+        meetingLink: meetingLink
+       },
       { new: true }
     ).populate("student", "name email");
 
@@ -433,7 +451,9 @@ const confirmBooking = async (req, res) => {
       booking: {
         id: confirmedBooking._id,
         subject: confirmedBooking.subject,
+        meetingLink: confirmBooking.meetingLink,
         date: confirmedBooking.date.toISOString(),
+        day: confirmedBooking
         timeSlot: confirmedBooking.timeSlot,
         studentName: confirmedBooking.student?.name || "Unknown",
         studentEmail: confirmedBooking.student?.email || "N/A",

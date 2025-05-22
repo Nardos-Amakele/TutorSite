@@ -32,7 +32,6 @@ StudentRouter.post("/bookings", auth, isStudent, bookTeacher); //checked!!
 StudentRouter.get("/bookings", auth, isStudent, getBookings);
 
 
-///////////////////////////////////////////////////////
 StudentRouter.patch("/bookings/:bookingId/cancel", auth, isStudent, cancelBooking);
 StudentRouter.patch("/bookings/:bookingId/complete", auth, isStudent, completeBooking);
 

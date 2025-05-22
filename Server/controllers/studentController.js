@@ -401,7 +401,10 @@ const getAvailableSlots = async (req, res) => {
 
     res.status(200).send({
       msg: "Available slots fetched successfully",
-      availability: filteredAvailability
+      availability: filteredAvailability,
+      subjects: teacher.subjects,
+      teacherId: teacherId
+
     });
 
   } catch (error) {
