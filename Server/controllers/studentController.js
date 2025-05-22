@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const { TeacherModel } = require("../models/TeacherModel");
 const Resource = require('../models/ResourceModel');
 const { BookingModel } = require("../models/BookingModel");
+const { deleteGoogleMeetEvent } = require("../services/calandarService");
 
 
 const searchTeachers = async (req, res) => {
@@ -162,6 +163,7 @@ const bookTeacher = async (req, res) => {
       booking: {
         id: booking._id,
         subject: booking.subject,
+        day: booking.day,
         date: booking.date.toISOString(),
         timeSlot: booking.timeSlot,
         status: booking.status,
@@ -193,9 +195,23 @@ const cancelBooking = async (req, res) => {
       });
     }
 
+    // If the booking was confirmed and has an event ID, delete the meeting
+    if (booking.status === "confirmed" && booking.eventId) {
+      try {
+        await deleteGoogleMeetEvent(booking.eventId);
+      } catch (error) {
+        console.error("Error deleting meeting:", error);
+        // Continue with cancellation even if meeting deletion fails
+      }
+    }
+
     const cancelledBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "cancelled" },
+      { 
+        status: "cancelled",
+        meetingLink: null, // Clear the meeting link
+        eventId: null // Clear the event ID
+      },
       { new: true }
     ).populate("teacher", "name email");
 
@@ -235,9 +251,23 @@ const completeBooking = async (req, res) => {
       });
     }
 
+    // If the booking has an event ID, delete the meeting
+    if (booking.eventId) {
+      try {
+        await deleteGoogleMeetEvent(booking.eventId);
+      } catch (error) {
+        console.error("Error deleting meeting:", error);
+        // Continue with completion even if meeting deletion fails
+      }
+    }
+
     const completedBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "completed" },
+      { 
+        status: "completed",
+        meetingLink: null, // Clear the meeting link
+        eventId: null // Clear the event ID
+      },
       { new: true }
     ).populate("teacher", "name email");
 
@@ -437,6 +467,39 @@ function timeIsValid(start, end) {
   return start < end;
 }
 
+// Add this function with your other controller functions
+const getDashboard = async (req, res) => {
+  try {
+    // Get the student's data
+    const student = await StudentModel.findById(req.user.userId)
+      .select('-password'); // Exclude password from the response
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    // Get recent bookings
+    const recentBookings = await BookingModel.find({ student: student._id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('teacher', 'name email');
+
+    // Get available teachers
+    const availableTeachers = await TeacherModel.find({ isAvailable: true })
+      .select('name email subjects hourlyRate')
+      .limit(5);
+
+    res.json({
+      student,
+      recentBookings,
+      availableTeachers,
+      message: "Dashboard data retrieved successfully"
+    });
+  } catch (error) {
+    console.error("Dashboard error:", error);
+    res.status(500).json({ message: "Error retrieving dashboard data" });
+  }
+};
 
 module.exports = {
   getStudentProfile,
@@ -448,7 +511,7 @@ module.exports = {
   getTeachers,
   getBookings,
   getResources,
-  getAvailableSlots
-
+  getAvailableSlots,
+  getDashboard
 };
 

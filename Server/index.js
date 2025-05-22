@@ -4,7 +4,16 @@ const app = express();
 const cookieParser = require("cookie-parser");
 const expressSession = require("express-session");
 const cors = require("cors");
+const urlencoded = require("body-parser").urlencoded;
+const fs = require('fs');
+const path = require('path');
 require("dotenv").config();
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Import database connection
 const { Connection } = require("./config/db");
@@ -14,13 +23,17 @@ const { AuthRouter } = require("./routes/authRoutes");
 const { StudentRouter } = require("./routes/studentRoutes");
 const { TeacherRouter } = require("./routes/teacherRoutes");
 const { adminRouter } = require("./routes/adminRoutes");
+const googleAuthRouter = require("./routes/auth");
+
 
 // Import error handling middleware
 const { errorHandler } = require("./middlewares/errorMiddleware");
 
+
 // Basic middleware
 app.use(express.json());
 app.use(cookieParser());
+app.use(urlencoded({ extended: true }));
 
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -45,9 +58,11 @@ app.use(
 
 // API Routes
 app.use("/auth", AuthRouter);  // Authentication routes
+app.use("/auth/google", googleAuthRouter);  // Google OAuth routes
 app.use("/student", StudentRouter);  // Student routes
 app.use("/teacher", TeacherRouter);  // Teacher routes
 app.use("/admin", adminRouter);  // Admin routes
+
 
 // Health check route
 app.get("/", (req, res) => {
@@ -62,7 +77,7 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 // Start server and connect to database
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   try {
     await Connection();

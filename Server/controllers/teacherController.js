@@ -4,6 +4,7 @@ const { TeacherModel } = require("../models/TeacherModel");
 const { BookingModel } = require("../models/BookingModel");
 const {ResourceModel} = require('../models/ResourceModel');
 const { FileModel } = require("../models/FileModel");
+const { createGoogleMeet, deleteGoogleMeetEvent } = require("../services/calandarService");
 const fs = require('fs');
 const path = require('path');
 
@@ -423,7 +424,7 @@ const confirmBooking = async (req, res) => {
       _id: bookingId,
       teacher: teacherId,
       status: "pending" // Can only confirm pending bookings
-    });
+    }).populate('teacher', 'email').populate('student', 'email');
 
     if (!booking) {
       return res.status(404).send({ 
@@ -431,27 +432,42 @@ const confirmBooking = async (req, res) => {
       });
     }
 
+    // Format the date and time for the meeting
+    const bookingDate = new Date(booking.date);
+    const [startHours, startMinutes] = booking.timeSlot.start.split(':');
+    const [endHours, endMinutes] = booking.timeSlot.end.split(':');
+
+    const startDateTime = new Date(bookingDate);
+    startDateTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
+
+    const endDateTime = new Date(bookingDate);
+    endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+
+    // Create meeting link using booking time slot
     const meeting = await createGoogleMeet({
       summary: "Scheduled Class",
-      description: `Here is your next meeting for your ${booking.subject} session.` ,
-      startTime,
-      endTime,
-      attendees: [booking.teacher, booking.student],
+      description: `Here is your next meeting for your ${booking.subject} session.`,
+      startTime: startDateTime,
+      endTime: endDateTime,
+      attendees: [booking.teacher.email, booking.student.email],
     });
 
-    if (!meeting){
-    res.status(500).json({
-      message: "Error while creating meeting Link",
-    });
+    if (!meeting) {
+      return res.status(500).json({
+        message: "Error while creating meeting Link",
+      });
     }
 
-    const meetingLink = meeting.hanoutLink;
+    const meetingLink = meeting.hangoutLink;
+    const eventId = meeting.id; // Store the Google Calendar event ID
 
     const confirmedBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "confirmed",
-        meetingLink: meetingLink
-       },
+      { 
+        status: "confirmed",
+        meetingLink: meetingLink,
+        eventId: eventId // Store the event ID
+      },
       { new: true }
     ).populate("student", "name email");
 
@@ -460,7 +476,7 @@ const confirmBooking = async (req, res) => {
       booking: {
         id: confirmedBooking._id,
         subject: confirmedBooking.subject,
-        meetingLink: confirmBooking.meetingLink,
+        meetingLink: confirmedBooking.meetingLink,
         date: confirmedBooking.date.toISOString(),
         day: confirmedBooking.day,
         timeSlot: confirmedBooking.timeSlot,
@@ -470,6 +486,7 @@ const confirmBooking = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Error in confirmBooking:", error);
     res.status(500).send({ msg: error.message });
   }
 };
@@ -529,9 +546,22 @@ const cancelBooking = async (req, res) => {
       });
     }
 
+    if (booking.eventId) {
+      try {
+        await deleteGoogleMeetEvent(booking.eventId);
+      } catch (error) {
+        console.error("Error deleting meeting:", error);
+        // Continue with cancellation even if meeting deletion fails
+      }
+    }
+
     const cancelledBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "cancelled" },
+      { 
+        status: "cancelled",
+        meetingLink: null,
+        eventId: null
+      },
       { new: true }
     ).populate("student", "name email");
 
@@ -569,10 +599,23 @@ const completeBooking = async (req, res) => {
         msg: "Booking not found or not authorized to complete" 
       });
     }
+    
+    if (booking.eventId) {
+      try {
+        await deleteGoogleMeetEvent(booking.eventId);
+      } catch (error) {
+        console.error("Error deleting meeting:", error);
+        // Continue with completion even if meeting deletion fails
+      }
+    }
 
     const completedBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
-      { status: "completed" },
+      { 
+        status: "completed",
+        meetingLink: null,
+        eventId: null
+      },
       { new: true }
     ).populate("student", "name email");
 
@@ -587,7 +630,6 @@ const completeBooking = async (req, res) => {
         studentEmail: completedBooking.student?.email || "N/A",
         status: completedBooking.status
       }
-      
     });
   } catch (error) {
     res.status(500).send({ msg: error.message });

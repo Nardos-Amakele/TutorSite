@@ -13,8 +13,60 @@ const registerUser = async (req, res) => {
   try {
     const { email, password, name, availability, subjects, hourlyRate } = req.body;
     const { role } = req.params;
+    const isTeacherDataRoute = req.path === '/register/teacher/data';
+    const isTeacherFilesRoute = req.path === '/register/teacher/files';
 
-    // Validate required fields
+    // Handle file upload for teacher
+    if (isTeacherFilesRoute) {
+      if (!email) {
+        return res.status(400).send({ msg: "Email is required for file upload" });
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+      }
+
+      // Find the teacher by email
+      const teacher = await TeacherModel.findOne({ email });
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found. Please register your data first." });
+      }
+
+      try {
+        // Save each uploaded file into DB
+        const savedFiles = await Promise.all(
+          req.files.map(file => {
+            const newFile = new FileModel({
+              filename: file.filename,
+              originalName: file.originalname,
+              path: file.path,
+              mimeType: file.mimetype,
+              size: file.size
+            });
+            return newFile.save();
+          })
+        );
+
+        // Update teacher with file IDs
+        teacher.attachments = savedFiles.map(f => f._id);
+        await teacher.save();
+
+        return res.status(200).send({
+          msg: "Teacher registration completed successfully",
+          user: { ...teacher._doc, password: undefined }
+        });
+      } catch (error) {
+        // Clean up uploaded files if database save fails
+        if (req.files) {
+          await Promise.all(req.files.map(file => 
+            fs.unlink(file.path).catch(console.error)
+          ));
+        }
+        throw new Error("Failed to save uploaded files");
+      }
+    }
+
+    // Validate required fields for other routes
     if (!email || !password || !name) {
       return res.status(400).send({ msg: "Email, password, and name are required" });
     }
@@ -39,63 +91,78 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "User already exists" });
     }
 
-    // Save files if teacher
-    let attachmentIds = [];
-    if (role === "teacher") {
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+    // Handle teacher registration
+    if (isTeacherDataRoute) {
+      if (!availability || !subjects || !hourlyRate) {
+        return res.status(400).send({ 
+          msg: "Teacher registration requires availability, subjects, and hourlyRate" 
+        });
       }
 
-      try {
-        // Save each uploaded file into DB
-        const savedFiles = await Promise.all(
-          req.files.map(file => {
-            const newFile = new FileModel({
-              filename: file.filename,
-              originalName: file.originalname,
-              path: file.path,
-              mimeType: file.mimetype,
-              size: file.size
-            });
-            return newFile.save();
-          })
-        );
-        attachmentIds = savedFiles.map(f => f._id);
-      } catch (error) {
-        // Clean up uploaded files if database save fails
-        if (req.files) {
-          await Promise.all(req.files.map(file => 
-            fs.unlink(file.path).catch(console.error)
-          ));
-        }
-        throw new Error("Failed to save uploaded files");
-      }
+      // Create teacher without attachments
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const teacher = new TeacherModel({
+        email,
+        password: hashedPassword,
+        name,
+        role: "teacher",
+        availability: availability,
+        subjects: subjects,
+        hourlyRate: Number(hourlyRate)
+      });
+
+      await teacher.save();
+
+      // Generate tokens
+      const { accessToken, refreshToken } = generateTokens(teacher._id, teacher.role, teacher.email);
+
+      // Set tokens
+      res.cookie("accessToken", accessToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+      res.cookie("refreshToken", refreshToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "strict",
+        maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
+      });
+
+      return res.status(201).send({
+        msg: "Teacher data registered successfully. Please upload your documents.",
+        user: { ...teacher._doc, password: undefined },
+        token: accessToken
+      });
     }
 
-    // Hash password
+    // Handle student and admin registration
     const hashedPassword = await bcrypt.hash(password, 10);
+    let user = null;
 
-    // Create user
-    let user;
-    switch (role) {
-      case "student":
-        user = new StudentModel({ email, password: hashedPassword, name, role });
-        break;
-      case "teacher":
-        user = new TeacherModel({
-          email,
-          password: hashedPassword,
-          name,
-          role,
-          attachments: attachmentIds,
-          availability: availability || [],
-          subjects: subjects || [],
-          hourlyRate: hourlyRate || 0
-        });
-        break;
-      case "admin":
-        user = new AdminModel({ email, password: hashedPassword, name, role });
-        break;
+    // Create user based on role
+    if (role === "student") {
+      user = new StudentModel({ 
+        email, 
+        password: hashedPassword, 
+        name, 
+        role 
+      });
+    } else if (role === "admin") {
+      user = new AdminModel({ 
+        email, 
+        password: hashedPassword, 
+        name, 
+        role 
+      });
+    } else {
+      return res.status(400).send({ msg: "Invalid role specified" });
+    }
+
+    // Save the user
+    if (!user) {
+      return res.status(400).send({ msg: "Failed to create user" });
     }
 
     await user.save();
@@ -116,7 +183,6 @@ const registerUser = async (req, res) => {
       sameSite: "strict",
       maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
     });
-    res.setHeader('Authorization', `Bearer ${accessToken}`);
 
     res.status(201).send({
       msg: `${role.charAt(0).toUpperCase() + role.slice(1)} registration successful`,
@@ -320,7 +386,15 @@ const resetPassword = async (req, res) => {
 
 const handleGoogleCallback = async (req, res) => {
   try {
-    const { email, displayName: name, picture: avatar } = req.user;
+    // Log the entire request for debugging
+    console.log("Google callback request:", req.user);
+
+    // Extract user data from the transformed Google profile
+    const { email, full_name: name, avatar } = req.user;
+
+    if (!email || !name) {
+      throw new Error("Missing required user data from Google");
+    }
     
     // Check all user types
     let user = await StudentModel.findOne({ email }) || 
@@ -331,20 +405,27 @@ const handleGoogleCallback = async (req, res) => {
     let Model = StudentModel; // default model
     
     if (!user) {
-      // Determine which model to use based on email domain or other logic
-      // For now, defaulting to StudentModel, but you can modify this logic
-      Model = StudentModel;
-      role = "student";
+      // Generate a random password for Google-authenticated users
+      const randomPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
       
       // Create new user if doesn't exist
       user = new Model({
         email,
         name,
+        password: hashedPassword,
         avatar,
         role,
         isGoogleAuth: true
       });
-      await user.save();
+
+      try {
+        await user.save();
+        console.log("New user created:", { email, name, role });
+      } catch (saveError) {
+        console.error("Error saving new user:", saveError);
+        throw saveError;
+      }
     } else {
       // If user exists, determine their role
       if (user instanceof StudentModel) {
@@ -360,37 +441,30 @@ const handleGoogleCallback = async (req, res) => {
     }
 
     // Generate tokens
-    const accessToken = jwt.sign(
-      { userId: user._id, role },
-      process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
-      { expiresIn: "24h" }
-    );
-    const refreshToken = jwt.sign(
-      { userId: user._id, role },
-      process.env.JWT_REFRESH_TOKEN_SECRET_KEY,
-      { expiresIn: "4d" }
-    );
+    const { accessToken, refreshToken } = generateTokens(user._id, role, user.email);
 
-    // Set cookies with secure options
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    // Return the tokens and user info
+    res.json({
+      success: true,
+      message: "Google authentication successful",
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: role
+        }
+      }
     });
-    
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
-    });
-
-    // Redirect to appropriate dashboard based on role
-    res.redirect(`/${role}/dashboard?auth=success`);
   } catch (error) {
     console.error("Google OAuth Error:", error);
-    res.redirect("/login?error=oauth_failed&message=" + encodeURIComponent(error.message));
+    res.status(500).json({
+      success: false,
+      message: "Google authentication failed",
+      error: error.message
+    });
   }
 };
 

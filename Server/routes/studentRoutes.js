@@ -9,15 +9,18 @@ const {
   getTeachers,
   getBookings,
   getResources,
-  getAvailableSlots
+  getAvailableSlots,
+  getDashboard
 } = require("../controllers/studentController");
 const { auth } = require("../middlewares/authMiddleware");
 const { isStudent } = require("../middlewares/roleMiddleware");
 
 const StudentRouter = express.Router();
 
-// Authentication routes
-// StudentRouter.post("/register", registerStudent);
+// Dashboard route
+StudentRouter.get("/dashboard", auth, isStudent, getDashboard);
+
+// Profile routes
 StudentRouter.get("/profile", auth, isStudent, getStudentProfile);
 StudentRouter.patch("/profile", auth, isStudent, updateStudentProfile);
 

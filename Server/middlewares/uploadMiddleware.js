@@ -1,10 +1,17 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Set storage config
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Make sure this folder exists
+    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -34,35 +41,24 @@ const upload = multer({
   }
 });
 
-const checkRole = (req, res, next) => {
-  if (req.params.role === 'teacher') {
-    // Validate required fields for teacher registration
-    const { availability, subjects, hourlyRate } = req.body;
-    if (!availability || !subjects || !hourlyRate) {
-      return res.status(400).send({ 
-        msg: "Teacher registration requires availability, subjects, and hourlyRate" 
-      });
-    }
-
-    upload.array('attachments', 10)(req, res, function (err) {
-      if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).send({ msg: 'File size too large. Maximum size is 10MB' });
-        }
-        if (err.code === 'LIMIT_FILE_COUNT') {
-          return res.status(400).send({ msg: 'Too many files. Maximum is 10 files' });
-        }
-        return res.status(400).send({ msg: err.message });
-      } else if (err) {
-        return res.status(400).send({ msg: err.message });
+// Simple middleware to handle file upload
+const handleFileUpload = (req, res, next) => {
+  upload.array('attachments', 3)(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).send({ msg: 'File size too large. Maximum size is 10MB' });
       }
-      next();
-    });
-  } else {
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).send({ msg: 'Too many files. Maximum is 3 files' });
+      }
+      return res.status(400).send({ msg: err.message });
+    } else if (err) {
+      return res.status(400).send({ msg: err.message });
+    }
     next();
-  }
+  });
 };
 
 module.exports = {
-  checkRole,
+  handleFileUpload
 }; 

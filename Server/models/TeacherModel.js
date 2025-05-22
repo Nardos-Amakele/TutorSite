@@ -30,7 +30,6 @@ const TeacherSchema =mongoose.Schema({
     },
   ],
     subjects: {type:[String], required:true},
-    qualification: {type:String, required:true},
 
     availability: [ 
       { date: String,
