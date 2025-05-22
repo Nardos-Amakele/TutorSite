@@ -1,5 +1,5 @@
 import one from './persona-school.webp'
-import two from './persona-teacher.webp'
+import two from '../../media/teacher.jpg'
 import three from './persona-student.webp'
 import four from './persona-parent.webp'
 

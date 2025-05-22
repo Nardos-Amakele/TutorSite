@@ -35,7 +35,7 @@ function Copyright(props) {
   return (
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
       {'Copyright © '}
-      <Link color="inherit">TutorConnect</Link>{' '}
+      <Link color="inherit">TutorHub</Link>{' '}
       {new Date().getFullYear()}
       {'.'}
     </Typography>
@@ -45,7 +45,7 @@ function Copyright(props) {
 const defaultTheme = createTheme({
   palette: {
     primary: {
-      main: '#1E88E5',
+      main: '#4CAF50', // Changed to green
     },
     secondary: {
       main: '#f50057',
@@ -87,10 +87,6 @@ const Signup = () => {
     if (newSubject.trim() && subjects.length < 3) {
       setSubjects([...subjects, newSubject.trim()]);
       setNewSubject('');
-      // Focus back on the subject input after adding
-      if (subjectInputRef.current) {
-        subjectInputRef.current.focus();
-      }
     }
   };
 
@@ -144,14 +140,6 @@ const Signup = () => {
     if (userType === 'tutor') {
       userDetails.subjects = subjects;
       userDetails.availability = availability;
-
-      // Create FormData for file uploads if needed
-      const formData = new FormData();
-      qualifications.forEach((file, index) => {
-        formData.append(`qualifications`, file);
-      });
-
-      // You might need to handle file uploads separately
     }
 
     const endpoint = userType === 'student'
@@ -251,7 +239,7 @@ const Signup = () => {
               }}
             >
               <LinkR to='/'>
-                <img src={Logo} alt="" />
+                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} /> {/* Smaller logo */}
               </LinkR>
 
               <Typography component="h1" variant="h5" sx={{ fontWeight: 600 }}>
@@ -329,11 +317,11 @@ const Signup = () => {
                             disabled={subjects.length >= 3}
                             autoFocus
                           />
-                          <IconButton 
-                        onClick={handleAddSubject}
-                        disabled={!newSubject.trim() || subjects.length >= 3}
-                        color="primary"
-                      >
+                          <IconButton
+                            onClick={handleAddSubject}
+                            disabled={!newSubject.trim() || subjects.length >= 3}
+                            color="primary"
+                          >
                             <AddIcon />
                           </IconButton>
                         </Box>
@@ -464,14 +452,14 @@ const Signup = () => {
                     mb: 2,
                     backgroundColor: 'primary.main',
                     '&:hover': {
-                      backgroundColor: '#1565c0',
+                      backgroundColor: '#3e8e41', // Darker green on hover
                     }
                   }}
                 >
                   Sign Up
                 </Button>
 
-                <GoogleButton
+                {/* <GoogleButton
                   label="Sign in"
                   type='dark'
                   style={{
@@ -483,7 +471,7 @@ const Signup = () => {
                     fontWeight: 500,
                     backgroundColor: '#FFFFFF'
                   }}
-                />
+                /> */}
 
                 <Grid container justifyContent="center" sx={{ marginTop: '1rem' }}>
                   <Grid item>

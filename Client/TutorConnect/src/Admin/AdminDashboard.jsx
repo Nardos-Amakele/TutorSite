@@ -39,7 +39,7 @@ import Dashboard from './Analytics';
 const Copyright = (props) => (
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
         {'Copyright © '}
-        <Link color="inherit">TutorConnect</Link>{' '}
+        <Link color="inherit">TutorHub</Link>{' '}
         {new Date().getFullYear()}{'.'}
     </Typography>
 );
@@ -106,7 +106,7 @@ const CustomBox1 = styled(Box)(({ theme }) => ({
     },
 
 }));
- const CustomBox = styled(Box)(({ theme }) => ({
+const CustomBox = styled(Box)(({ theme }) => ({
     display: 'flex',
     width: '100%',
     gap: '1rem',
@@ -117,7 +117,7 @@ const CustomBox1 = styled(Box)(({ theme }) => ({
 
     },
 
-  }));
+}));
 const AdminDashboard = () => {
     const [open, setOpen] = useState(true);
     const [show, setShow] = useState('dashboard');
@@ -152,7 +152,7 @@ const AdminDashboard = () => {
                 </AppBar>
                 <Drawer variant="permanent" open={open}>
                     <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: [1], mx: 2 }}>
-                        <img src={Logo} alt="" style={{ minWidth: '100%' }} />
+                        <img src={Logo} alt="" style={{ minWidth: '40%' }} />
                         <IconButton onClick={toggleDrawer}>
                             <ChevronLeftIcon />
                         </IconButton>
@@ -200,19 +200,19 @@ const AdminDashboard = () => {
                                 <Teachers /> {/* Directly render the Teachers component */}
                             </CustomBox>
                         )}
-                         {show === 'students' && (
+                        {show === 'students' && (
                             <CustomBox1>
                                 <Students />
                             </CustomBox1>
                         )}
                         {show === 'pending' && (
                             <CustomBox1>
-                                <PendingTutors  />
+                                <PendingTutors />
                             </CustomBox1>
                         )}
-                         {show === 'dashboard' && (
+                        {show === 'dashboard' && (
                             <CustomBox1>
-                                <Dashboard  />
+                                <Dashboard />
                             </CustomBox1>
                         )}
                     </Container>

@@ -3,7 +3,7 @@ import { Splide, SplideSlide } from '@splidejs/react-splide';
 import '@splidejs/react-splide/css';
 import { AutoScroll } from '@splidejs/splide-extension-auto-scroll';
 
-// Replace with actual tutor images
+// Replace these with conceptual app screenshots or relevant visuals
 import {
   one, two, three, four, five, six
 } from '../media/SlideImages/slideImages';
@@ -27,7 +27,7 @@ const SlidingImages1 = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#F5FDF7', // very light greenish background
+        backgroundColor: '#F5FDF7',
         mt: 8,
         mb: 8,
         py: 6,
@@ -42,21 +42,21 @@ const SlidingImages1 = () => {
         sx={{
           fontWeight: 'bold',
           letterSpacing: '3px',
-          color: '#4CAF50', // your preferred green
+          color: '#4CAF50',
         }}
       >
-        MEET OUR DEDICATED TUTORS
+        A GLIMPSE INTO OUR FUTURE APP
       </Typography>
 
       <Typography
         variant="body1"
         sx={{
-          color: '#2E7D32', // darker green for text
+          color: 'black',
           maxWidth: '700px',
           mx: 'auto',
         }}
       >
-        A glimpse of the passionate educators who are here to help you succeed in your academic journey.
+        Get an exclusive sneak peek at the innovative features and intuitive design we're building to connect students and tutors — making learning personalized, accessible, and effective.
       </Typography>
 
       <Splide
@@ -78,7 +78,7 @@ const SlidingImages1 = () => {
       >
         {[one, two, three, four, five, six].map((imgSrc, index) => (
           <SplideSlide key={index} style={customSlideStyle}>
-            <img src={imgSrc} alt={`Tutor ${index + 1}`} style={imgStyle} />
+            <img src={imgSrc} alt={`App preview ${index + 1}`} style={imgStyle} />
           </SplideSlide>
         ))}
       </Splide>

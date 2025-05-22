@@ -50,7 +50,7 @@ function Copyright(props) {
     <Typography variant="body2" color="text.secondary" align="center" {...props}>
       {'Copyright © '}
       <Link color="inherit">
-        TutorConnect
+        TutorHub
       </Link>{' '}
       {new Date().getFullYear()}
       {'.'}
@@ -332,7 +332,7 @@ const Dashboard = () => {
 
             {/* logo */}
             {/* <Box sx={{outline: '1px solid'}}> */}
-            <img src={Logo} alt="" style={{ minWidth: '100%' }} />
+            <img src={Logo} alt="" style={{ minWidth: '40%' }} />
             {/* </Box> */}
 
             <IconButton onClick={toggleDrawer}>

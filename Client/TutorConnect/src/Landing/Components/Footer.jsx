@@ -49,35 +49,38 @@ const Footer = () => {
   }));
 
   return (
-    <Box sx={{ py: 10, backgroundColor: "#F5F5F5" }}> {/* Increased padding */}
-      <CustomContainer>
+    <Box sx={{ py: 10, backgroundColor: "#F5F5F5" }}>
+      <CustomContainer
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 4,
+        }}
+      >
         <Box>
-          <FooterTitle>Solutions</FooterTitle>
-          <FooterLink>LMS</FooterLink>
-          <FooterLink>Assessments</FooterLink>
-          <FooterLink>Admissions</FooterLink>
+          <FooterTitle>Our Services</FooterTitle>
+          <FooterLink>For Tutors</FooterLink>
+          <FooterLink>For Students</FooterLink>
+          <FooterLink>For Schools</FooterLink>
         </Box>
 
         <Box>
-          <FooterTitle>Company</FooterTitle>
-          <FooterLink>Home</FooterLink>
-          <FooterLink>Blog</FooterLink>
-          <FooterLink>Terms</FooterLink>
+          <FooterTitle>About </FooterTitle>
+          <FooterLink>Help Center</FooterLink>
+          <FooterLink>FAQs</FooterLink>
         </Box>
 
         <Box>
-          <FooterTitle>Tools</FooterTitle>
-          <FooterLink>Timetable</FooterLink>
-          <FooterLink>Planner</FooterLink>
+          <FooterTitle>Features</FooterTitle>
+          <FooterLink>Personal Profile</FooterLink>
+          <FooterLink>Scheduling</FooterLink>
+          <FooterLink>Learning Resources</FooterLink>
         </Box>
 
         <Box>
-          <FooterTitle>Contact</FooterTitle>
-          <Typography sx={{ fontSize: "15px", color: "#7A7A7E", fontWeight: 400 }}>
-            5th Floor, SJR Primus,<br />
-            Koramangala, BLR 560034
-          </Typography>
-          <IconBox>
+          <FooterTitle>Connect With Us</FooterTitle>
+          <IconBox sx={{ mt: 1, display: 'flex', gap: 2 }}>
             <img src={fbIcon} alt="Facebook" style={{ height: 25, cursor: "pointer" }} />
             <img src={twitterIcon} alt="Twitter" style={{ height: 25, cursor: "pointer" }} />
             <img src={linkedinIcon} alt="LinkedIn" style={{ height: 25, cursor: "pointer" }} />
@@ -85,6 +88,7 @@ const Footer = () => {
         </Box>
       </CustomContainer>
     </Box>
+
   );
 };
 

@@ -28,7 +28,7 @@ export const Navbar = () => {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: theme.spacing(3),
+    gap: theme.spacing(2), // Reduced spacing
     [theme.breakpoints.down("md")]: {
       display: "none",
     },
@@ -37,7 +37,8 @@ export const Navbar = () => {
   const CustomMenuIcon = styled(MenuIcon)(({ theme }) => ({
     cursor: "pointer",
     display: "none",
-    marginRight: theme.spacing(2),
+    fontSize: "1.8rem", // Smaller icon
+    marginRight: theme.spacing(1.5),
     [theme.breakpoints.down("md")]: {
       display: "block",
     },
@@ -47,34 +48,35 @@ export const Navbar = () => {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: theme.spacing(5),
+    padding: theme.spacing(2), // Smaller padding
     [theme.breakpoints.down("md")]: {
-      padding: theme.spacing(2),
+      padding: theme.spacing(1.5),
     },
   }));
+
 
   const NavbarLogo = styled("img")(({ theme }) => ({
     cursor: "pointer",
     width: "12rem",
-    height : "8rem",
+    height: "8rem",
     [theme.breakpoints.down("md")]: {
       display: "none",
     },
   }));
 
   return (
-    <NavbarContainer sx={{}}>
+    <NavbarContainer>
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "2.5rem",
+          gap: "2rem", // slightly smaller gap
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <CustomMenuIcon onClick={toggleDrawer("left", true)} />
-          <NavbarLogo src={logoImg} alt="logo-TutorConnect" />
+          <NavbarLogo src={logoImg} alt="logo-TutorHub" />
         </Box>
       </Box>
 
@@ -83,7 +85,7 @@ export const Navbar = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "1rem",
+          gap: "0.8rem", // reduced button gap
         }}
       >
         <Link to="/login" style={{ textDecoration: "none" }}>
@@ -92,6 +94,7 @@ export const Navbar = () => {
             color="#4CAF50"
             buttonText="Login"
             borderColor="#4CAF50"
+            sx={{ fontSize: "0.85rem", px: 2, py: 1 }} // smaller button
           />
         </Link>
 
@@ -100,6 +103,7 @@ export const Navbar = () => {
             backgroundColor="#4CAF50"
             color="#fff"
             buttonText="Get Started"
+            sx={{ fontSize: "0.85rem", px: 2, py: 1 }} // smaller button
           />
         </Link>
       </Box>

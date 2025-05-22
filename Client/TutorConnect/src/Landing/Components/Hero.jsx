@@ -24,13 +24,12 @@ const Hero = () => {
     fontWeight: 700,
     lineHeight: 1.3,
     margin: theme.spacing(2, 0),
-    background: "linear-gradient(90deg, #2E7D32 0%, #4CAF50 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
+    color: "black",
     [theme.breakpoints.down("sm")]: {
       fontSize: "36px",
     },
   }));
+
 
   const StatsBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -52,7 +51,7 @@ const Hero = () => {
 
   return (
     <Box sx={{ backgroundColor: "#F9F9F9", py: 1 }}>
-<Container maxWidth="lg" sx={{ maxWidth: '800px', width: '80%', mx: 'auto' }}>        <Navbar />
+      <Container maxWidth="lg" sx={{ maxWidth: '800px', width: '80%', mx: 'auto' }}>        <Navbar />
         <CustomBox>
           <Box sx={{ flex: 1, maxWidth: "560px" }}>
             <Typography
@@ -114,29 +113,31 @@ const Hero = () => {
         <StatsBox>
           <StatItem>
             <Typography variant="h4" sx={{ color: "#4CAF50", fontWeight: 700 }}>
-              10K+
+              1-on-1
             </Typography>
-            <Typography variant="body2">Students</Typography>
+            <Typography variant="body2">Personalized Tutoring Sessions</Typography>
           </StatItem>
           <StatItem>
             <Typography variant="h4" sx={{ color: "#4CAF50", fontWeight: 700 }}>
-              500+
+              40+
             </Typography>
-            <Typography variant="body2">Courses</Typography>
-          </StatItem>
-          <StatItem>
-            <Typography variant="h4" sx={{ color: "#4CAF50", fontWeight: 700 }}>
-              98%
-            </Typography>
-            <Typography variant="body2">Satisfaction</Typography>
+            <Typography variant="body2">Subjects Offered</Typography>
           </StatItem>
           <StatItem>
             <Typography variant="h4" sx={{ color: "#4CAF50", fontWeight: 700 }}>
               24/7
             </Typography>
-            <Typography variant="body2">Support</Typography>
+            <Typography variant="body2">Access to Learning Resources</Typography>
+          </StatItem>
+
+          <StatItem>
+            <Typography variant="h4" sx={{ color: "#4CAF50", fontWeight: 700 }}>
+              100%
+            </Typography>
+            <Typography variant="body2">Tutor Background Verification</Typography>
           </StatItem>
         </StatsBox>
+
       </Container>
     </Box>
   );

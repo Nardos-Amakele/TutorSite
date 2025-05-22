@@ -28,6 +28,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import Booked from './Booked';
 import Resources from './Resources';
 import Requests from './Requests'
+import Logo from '../Landing/media/logo.png'
 
 
 const drawerWidth = 240;
@@ -123,7 +124,7 @@ const TeacherDashboard = () => {
 
                 <Drawer variant="permanent" open={open}>
                     <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: [1], mx: 2 }}>
-                        <img src="logo_placeholder.png" alt="" style={{ minWidth: '100%' }} />
+                        <img src={Logo} alt="" style={{ minWidth: '40%' }} />
                         <IconButton onClick={toggleDrawer}>
                             <ChevronLeftIcon />
                         </IconButton>
