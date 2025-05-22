@@ -128,7 +128,44 @@ const AdminDashboard = () => {
     const toggleDrawer = () => setOpen(!open);
 
     const handleLogout = async () => {
-        // Logout logic here
+        try {
+            const result = await MySwal.fire({
+                title: 'Are you sure you want to logout?',
+                text: "You will need to login again to access the dashboard.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4CAF50',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, logout!'
+            });
+
+            if (result.isConfirmed) {
+                // Clear the token from cookies
+                document.cookie = 'JAA_access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                
+                // Clear any other auth-related data from localStorage if needed
+                localStorage.removeItem('userData');
+                
+                // Show success message
+                await MySwal.fire({
+                    title: 'Logged Out!',
+                    text: 'You have been successfully logged out.',
+                    icon: 'success',
+                    confirmButtonColor: '#4CAF50'
+                });
+
+                // Redirect to home page
+                navigate('/');
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            await MySwal.fire({
+                title: 'Error!',
+                text: 'An error occurred during logout. Please try again.',
+                icon: 'error',
+                confirmButtonColor: '#4CAF50'
+            });
+        }
     };
 
     return (

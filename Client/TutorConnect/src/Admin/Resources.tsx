@@ -12,31 +12,32 @@ import {
   InputAdornment,
   MenuItem,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
-  CardActions
+  CardActions,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 // Create green theme
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2e7d32', // Deep green
-      light: '#4caf50', // Medium green
-      dark: '#1b5e20', // Dark green
+      main: '#2e7d32',
+      light: '#4caf50',
+      dark: '#1b5e20',
       contrastText: '#ffffff'
     },
     secondary: {
-      main: '#81c784', // Light green
+      main: '#81c784',
       contrastText: '#000000'
     },
     background: {
@@ -71,63 +72,118 @@ const theme = createTheme({
   }
 });
 
-// Extended hardcoded data
-const resourcesData = [
-  {
-    id: 1,
-    title: 'React Documentation',
-    url: 'https://reactjs.org/docs/getting-started.html',
-    description: 'Official React documentation with guides and API references',
-    subject: 'Frontend',
-    uploadedBy: 'Alice'
-  },
-  {
-    id: 2,
-    title: 'TypeScript Handbook',
-    url: 'https://www.typescriptlang.org/docs/handbook/intro.html',
-    description: 'Complete guide to TypeScript features',
-    subject: 'Programming',
-    uploadedBy: 'Bob'
-  },
-  {
-    id: 3,
-    title: 'Material-UI Components',
-    url: 'https://mui.com/material-ui/getting-started/',
-    description: 'Collection of ready-to-use React components',
-    subject: 'UI Library',
-    uploadedBy: 'Alice'
-  },
-  {
-    id: 4,
-    title: 'CSS Tricks',
-    url: 'https://css-tricks.com/',
-    description: 'Daily articles about CSS, HTML, JavaScript, and all things web development',
-    subject: 'Web Design',
-    uploadedBy: 'Charlie'
-  },
-  {
-    id: 5,
-    title: 'MDN Web Docs',
-    url: 'https://developer.mozilla.org/en-US/',
-    description: 'Resources for developers, by developers',
-    subject: 'Web Development',
-    uploadedBy: 'Bob'
-  }
-];
+interface Resource {
+  _id: string;
+  title: string;
+  url: string;
+  description: string;
+  subject: string;
+  uploadedBy: string;
+}
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [resources, setResources] = React.useState(resourcesData);
+  const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
   const [selectedUploader, setSelectedUploader] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-  const [openDialog, setOpenDialog] = React.useState(false);
-  const [newResource, setNewResource] = React.useState({
-    title: '',
-    url: '',
-    description: '',
-    uploadedBy: 'Tutor Name'
+  const [loading, setLoading] = React.useState(true);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
   });
+
+  // Fetch resources on component mount
+  React.useEffect(() => {
+    fetchResources();
+  }, []);
+
+  const fetchResources = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('JAA_access_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('http://localhost:5000/admin/resources', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch resources');
+      }
+
+      const data = await response.json();
+      setResources(data.Resources || []);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to fetch resources',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId: string) => {
+    try {
+      const result = await MySwal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('JAA_access_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch(`http://localhost:5000/admin/resources/${resourceId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete resource');
+        }
+
+        setResources(resources.filter(resource => resource._id !== resourceId));
+        setSnackbar({
+          open: true,
+          message: 'Resource deleted successfully',
+          severity: 'success'
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete resource',
+        severity: 'error'
+      });
+    }
+  };
 
   // Derive unique subjects and uploaders for filter dropdowns
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
@@ -144,22 +200,6 @@ const Resources = () => {
 
     return searchMatch && subjectMatch && uploaderMatch;
   });
-
-  const handleAddResource = () => {
-    if (newResource.title && newResource.url) {
-      setResources([...resources, {
-          id: resources.length + 1, 
-          ...newResource,
-          subject: 'General'
-      }]);
-      setNewResource({ title: '', url: '', description: '', uploadedBy: 'Tutor Name' });
-      setOpenDialog(false);
-    }
-  };
-
-  const handleDeleteResource = (id) => {
-    setResources(resources.filter(resource => resource.id !== id));
-  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -187,83 +227,6 @@ const Resources = () => {
           }} />
           Learning Resources
         </Typography>
-
-        {/* Add Resource Button */}
-        <Box sx={{ mb: 4 }}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenDialog(true)}
-            sx={{
-              boxShadow: '0 2px 4px rgba(46, 125, 50, 0.3)',
-              '&:hover': {
-                boxShadow: '0 4px 8px rgba(46, 125, 50, 0.4)',
-                backgroundColor: 'primary.dark'
-              }
-            }}
-          >
-            Add Resource
-          </Button>
-        </Box>
-
-        {/* Resource Dialog */}
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-          <DialogTitle sx={{ 
-            backgroundColor: 'primary.main',
-            color: 'white',
-            fontWeight: 600
-          }}>
-            Add New Resource
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Title"
-              fullWidth
-              value={newResource.title}
-              onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              margin="dense"
-              label="URL"
-              fullWidth
-              value={newResource.url}
-              onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              margin="dense"
-              label="Description (optional)"
-              fullWidth
-              multiline
-              rows={3}
-              value={newResource.description}
-              onChange={(e) => setNewResource({ ...newResource, description: e.target.value })}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={() => setOpenDialog(false)}
-              sx={{ color: 'primary.dark' }}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddResource}
-              variant="contained"
-              sx={{
-                backgroundColor: 'primary.main',
-                '&:hover': {
-                  backgroundColor: 'primary.dark'
-                }
-              }}
-            >
-              Add Resource
-            </Button>
-          </DialogActions>
-        </Dialog>
 
         {/* Search and Filters */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ 
@@ -342,7 +305,7 @@ const Resources = () => {
           ) : filteredResources.length > 0 ? (
             filteredResources.map(resource => (
               <Card
-                key={resource.id}
+                key={resource._id}
                 sx={{
                   borderRadius: 2,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
@@ -405,7 +368,7 @@ const Resources = () => {
                   <CardActions sx={{ p: 2, alignItems: 'center' }}>
                     <IconButton 
                       aria-label="delete"
-                      onClick={() => handleDeleteResource(resource.id)}
+                      onClick={() => handleDeleteResource(resource._id)}
                       sx={{
                         color: 'error.main',
                         '&:hover': {
@@ -448,6 +411,20 @@ const Resources = () => {
             </Box>
           )}
         </Stack>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

@@ -13,9 +13,10 @@ const {
   cancelBooking,
   getUserStats,
   viewAllBookings,
-  filterBookings
+  filterBookings,
+  getUnverifiedTeachers
 } = require("../controllers/adminController");
-const { getResources } = require("../controllers/teacherController");
+const { getResources } = require("../controllers/studentController");
 
 const { auth } = require("../middlewares/authMiddleware");
 const { isAdmin } = require("../middlewares/roleMiddleware");
@@ -46,6 +47,7 @@ adminRouter.get("/bookings/filter",  filterBookings);
 adminRouter.patch("/bookings/:userId/cancel",  cancelBooking);
 
 adminRouter.get("/stats",  getUserStats);
+adminRouter.get("/unverified-teachers",  getUnverifiedTeachers);
 
 module.exports = { adminRouter };
 

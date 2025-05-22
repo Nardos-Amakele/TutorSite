@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -10,6 +10,11 @@ import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { Skeleton, Snackbar, Alert } from '@mui/material';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 // Create theme
 const theme = createTheme({
@@ -25,34 +30,118 @@ const theme = createTheme({
   },
 });
 
-const PendingTutors = () => {
-  const [tutors, setTutors] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      qualification: "PhD in Mathematics",
-      email: "john.doe@example.com",
-      status: "Pending",
-      subjects: ["Math", "Physics", "Chemistry"],
-      lastActive: "2 days ago",
-      documents: ["Degree Certificate", "ID Proof", "Teaching License"]
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      qualification: "MSc in Physics",
-      email: "jane.smith@example.com",
-      status: "Pending",
-      subjects: ["Physics", "Biology"],
-      lastActive: "1 day ago",
-      documents: ["Degree Certificate", "ID Proof"]
-    },
-  ]);
+interface Teacher {
+  _id: string;
+  name: string;
+  qualification: string;
+  email: string;
+  status: string;
+  subjects: string[];
+  lastActive: string;
+  documents: string[];
+}
 
-  const handleVerify = (tutorId) => {
-    setTutors(tutors.map(tutor =>
-      tutor.id === tutorId ? { ...tutor, status: "Verified" } : tutor
-    ));
+const PendingTutors = () => {
+  const [tutors, setTutors] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+
+  // Fetch unverified teachers on component mount
+  useEffect(() => {
+    fetchUnverifiedTeachers();
+  }, []);
+
+  const fetchUnverifiedTeachers = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('JAA_access_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('http://localhost:5000/admin/unverified-teachers', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch unverified teachers');
+      }
+
+      const data = await response.json();
+      setTutors(data.teachers || []);
+    } catch (error) {
+      console.error('Error fetching unverified teachers:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to fetch unverified teachers',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async (tutorId: string) => {
+    try {
+      const result = await MySwal.fire({
+        title: 'Verify this tutor?',
+        text: "This will grant them access to the platform as a verified tutor.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, verify them!'
+      });
+
+      if (result.isConfirmed) {
+        const token = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('JAA_access_token='))
+          ?.split('=')[1];
+
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch(`http://localhost:5000/admin/teachers/${tutorId}/verify`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to verify teacher');
+        }
+
+        // Remove the verified teacher from the list
+        setTutors(tutors.filter(tutor => tutor._id !== tutorId));
+
+        setSnackbar({
+          open: true,
+          message: 'Teacher verified successfully',
+          severity: 'success'
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying teacher:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to verify teacher',
+        severity: 'error'
+      });
+    }
   };
 
   return (
@@ -68,140 +157,192 @@ const PendingTutors = () => {
           minHeight: '100vh'
         }}
       >
-        {tutors.map((tutor) => (
-          <Card
-            key={tutor.id}
-            sx={{
-              width: '100%',
-              maxWidth: 1000, // Increased width
-              borderRadius: 3,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              transition: 'transform 0.3s, box-shadow 0.3s',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: '0 6px 16px rgba(46, 125, 50, 0.15)',
-              }
-            }}
-          >
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
-                <Avatar sx={{ 
-                  bgcolor: 'primary.main', 
-                  width: 80, 
-                  height: 80, 
-                  mr: 3,
-                  fontSize: '2rem'
-                }}>
-                  {tutor.name.charAt(0)}
-                </Avatar>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h5" component="div" fontWeight="bold">
-                      {tutor.name}
-                    </Typography>
-                    <Chip 
-                      label={tutor.status}
-                      color={tutor.status === "Verified" ? "success" : "warning"}
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                  </Box>
-                  <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {tutor.qualification}
-                  </Typography>
-                  
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                    gap: 3,
-                    mt: 3
+        {loading ? (
+          Array.from({ length: 2 }).map((_, index) => (
+            <Skeleton 
+              key={index}
+              variant="rectangular"
+              width={1000}
+              height={400}
+              sx={{ 
+                borderRadius: 3,
+                backgroundColor: 'rgba(46, 125, 50, 0.1)'
+              }}
+            />
+          ))
+        ) : tutors.length > 0 ? (
+          tutors.map((tutor) => (
+            <Card
+              key={tutor._id}
+              sx={{
+                width: '100%',
+                maxWidth: 1000,
+                borderRadius: 3,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transition: 'transform 0.3s, box-shadow 0.3s',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                  boxShadow: '0 6px 16px rgba(46, 125, 50, 0.15)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                  <Avatar sx={{ 
+                    bgcolor: 'primary.main', 
+                    width: 80, 
+                    height: 80, 
+                    mr: 3,
+                    fontSize: '2rem'
                   }}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        <strong>Email:</strong>
+                    {tutor.name.charAt(0)}
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h5" component="div" fontWeight="bold">
+                        {tutor.name}
                       </Typography>
-                      <Typography variant="body1">{tutor.email}</Typography>
+                      <Chip 
+                        label="Pending Verification"
+                        color="warning"
+                        sx={{ fontWeight: 'bold' }}
+                      />
                     </Box>
+                    <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {tutor.qualification}
+                    </Typography>
                     
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        <strong>Last Active:</strong>
-                      </Typography>
-                      <Typography variant="body1">{tutor.lastActive}</Typography>
-                    </Box>
-                    
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        <strong>Documents Submitted:</strong>
-                      </Typography>
-                      <Typography variant="body1">{tutor.documents.length} files</Typography>
+                    <Box sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
+                      gap: 3,
+                      mt: 3
+                    }}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          <strong>Email:</strong>
+                        </Typography>
+                        <Typography variant="body1">{tutor.email}</Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          <strong>Last Active:</strong>
+                        </Typography>
+                        <Typography variant="body1">{tutor.lastActive}</Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          <strong>Documents Submitted:</strong>
+                        </Typography>
+                        <Typography variant="body1">{tutor.documents?.length || 0} files</Typography>
+                      </Box>
                     </Box>
                   </Box>
                 </Box>
-              </Box>
 
-              <Divider sx={{ my: 3 }} />
+                <Divider sx={{ my: 3 }} />
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Subjects:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {tutor.subjects.map((subject, index) => (
-                    <Chip
-                      key={index}
-                      label={subject}
-                      color="primary"
-                      variant="outlined"
-                      sx={{ 
-                        fontSize: '0.9rem',
-                        px: 1.5,
-                        py: 0.5
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+                    Subjects:
+                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                    {tutor.subjects.map((subject, index) => (
+                      <Chip
+                        key={index}
+                        label={subject}
+                        color="primary"
+                        variant="outlined"
+                        sx={{ 
+                          fontSize: '0.9rem',
+                          px: 1.5,
+                          py: 0.5
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
 
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mt: 4
-              }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  size="large"
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    px: 4
-                  }}
-                >
-                  View Documents
-                </Button>
-                <Button
-                  onClick={() => handleVerify(tutor.id)}
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: 'none',
-                    fontWeight: 'bold',
-                    px: 4,
-                    '&:hover': {
-                      backgroundColor: 'primary.dark'
-                    }
-                  }}
-                >
-                  Verify Tutor
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mt: 4
+                }}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="large"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 'bold',
+                      px: 4
+                    }}
+                  >
+                    View Documents
+                  </Button>
+                  <Button
+                    onClick={() => handleVerify(tutor._id)}
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 'bold',
+                      px: 4,
+                      '&:hover': {
+                        backgroundColor: 'primary.dark'
+                      }
+                    }}
+                  >
+                    Verify Tutor
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Box sx={{ 
+            textAlign: 'center', 
+            py: 6, 
+            backgroundColor: 'white',
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            width: '100%',
+            maxWidth: 1000
+          }}>
+            <Typography variant="h6" sx={{ 
+              color: 'text.secondary',
+              mb: 2
+            }}>
+              No pending tutor verifications
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'text.secondary',
+              fontStyle: 'italic'
+            }}>
+              All tutors have been verified or there are no new applications.
+            </Typography>
+          </Box>
+        )}
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

@@ -17,7 +17,7 @@ const getAdmins = async (req, res) => {
 
 const getAllTeachers = async (req, res) => {
   try {
-    const teachers = await TeacherModel.find({}, "-password, -__v");
+    const teachers = await TeacherModel.find({verified: true}, "-password, -__v");
     res.status(200).send({ teachers });
   } catch (error) {
     res.status(500).send({ msg: error.message });
@@ -98,7 +98,15 @@ const unbanUserById = async (req, res) => {
     }
   };
 
-  
+const getUnverifiedTeachers = async (req, res) => {
+  try {
+    const teachers = await TeacherModel.find({ verified: false }, "-password -__v");
+    res.status(200).send({ teachers });
+  } catch (error) {
+    res.status(500).send({ msg: error.message });
+  }
+};
+
 const verifyTeacher = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -201,20 +209,19 @@ const viewAllBookings = async (req, res) => {
   };
   
 
-  
 module.exports = {
-    // registerAdmin,
-    getAdmins,
-    getAllTeachers,
-    getAllStudents,
-    searchTeachers,
-    searchStudents,
-    banUserById,
-    unbanUserById,
-    verifyTeacher,
-    removeResource,
-    cancelBooking,
-    getUserStats,
-    viewAllBookings,
-    filterBookings
+  getAdmins,
+  getAllTeachers,
+  searchTeachers,
+  searchStudents,
+  getAllStudents,
+  banUserById,
+  unbanUserById,
+  verifyTeacher,
+  removeResource,
+  cancelBooking,
+  getUserStats,
+  viewAllBookings,
+  filterBookings,
+  getUnverifiedTeachers
 };

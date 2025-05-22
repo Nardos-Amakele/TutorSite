@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -11,7 +11,14 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import BlockIcon from '@mui/icons-material/Block';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { TextField, InputAdornment, Skeleton, Snackbar, Alert } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 // Create green theme
 const theme = createTheme({
@@ -53,48 +60,176 @@ const theme = createTheme({
     }
 });
 
-const Teachers = () => {
-    const [teachers, setTeachers] = useState([
-        {
-            id: 1,
-            name: "John Doe",
-            qualification: "PhD in Mathematics",
-            email: "john.doe@example.com",
-            status: "Active",
-            subjects: ["Math", "Physics", "Chemistry"],
-            banned: false,
-            lastActive: "2 hours ago"
-        },
-        {
-            id: 2,
-            name: "Jane Smith",
-            qualification: "MSc in Physics",
-            email: "jane.smith@example.com",
-            status: "Active",
-            subjects: ["Physics", "Biology"],
-            banned: false,
-            lastActive: "30 minutes ago"
-        },
-        {
-            id: 3,
-            name: "Robert Johnson",
-            qualification: "PhD in Chemistry",
-            email: "robert.j@example.com",
-            status: "Inactive",
-            subjects: ["Chemistry", "Biology"],
-            banned: true,
-            lastActive: "2 weeks ago"
-        }
-    ]);
+interface Teacher {
+    _id: string;
+    name: string;
+    qualification: string;
+    email: string;
+    status: string;
+    subjects: string[];
+    banned: boolean;
+    lastActive: string;
+    verified: boolean;
+}
 
-    const toggleBanTeacher = (teacherId: number) => {
-        setTeachers(teachers.map(teacher =>
-            teacher.id === teacherId ? { 
-                ...teacher, 
-                banned: !teacher.banned,
-                status: !teacher.banned ? "Inactive" : "Active"
-            } : teacher
-        ));
+const Teachers = () => {
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success' as 'success' | 'error'
+    });
+
+    // Fetch teachers on component mount
+    useEffect(() => {
+        fetchTeachers();
+    }, []);
+
+    // Fetch teachers when search term changes
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchTerm) {
+                searchTeachers();
+            } else {
+                fetchTeachers();
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm]);
+
+    const fetchTeachers = async () => {
+        try {
+            const token = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('JAA_access_token='))
+                ?.split('=')[1];
+
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            const response = await fetch('http://localhost:5000/admin/teachers', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch teachers');
+            }
+
+            const data = await response.json();
+            setTeachers(data.teachers || []);
+        } catch (error) {
+            console.error('Error fetching teachers:', error);
+            setSnackbar({
+                open: true,
+                message: 'Failed to fetch teachers',
+                severity: 'error'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const searchTeachers = async () => {
+        try {
+            const token = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('JAA_access_token='))
+                ?.split('=')[1];
+
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            const response = await fetch(`http://localhost:5000/admin/teachers/search?name=${searchTerm}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to search teachers');
+            }
+
+            const data = await response.json();
+            setTeachers(data.teachers || []);
+        } catch (error) {
+            console.error('Error searching teachers:', error);
+            setSnackbar({
+                open: true,
+                message: 'Failed to search teachers',
+                severity: 'error'
+            });
+        }
+    };
+
+    const handleBanToggle = async (teacherId: string, currentBannedStatus: boolean) => {
+        try {
+            const result = await MySwal.fire({
+                title: `Are you sure you want to ${currentBannedStatus ? 'unban' : 'ban'} this teacher?`,
+                text: currentBannedStatus 
+                    ? "The teacher will regain access to their account."
+                    : "The teacher will lose access to their account.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#2e7d32',
+                cancelButtonColor: '#d33',
+                confirmButtonText: `Yes, ${currentBannedStatus ? 'unban' : 'ban'} them!`
+            });
+
+            if (result.isConfirmed) {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('JAA_access_token='))
+                    ?.split('=')[1];
+
+                if (!token) {
+                    throw new Error('No authentication token found');
+                }
+
+                const action = currentBannedStatus ? 'unban' : 'ban';
+                const response = await fetch(`http://localhost:5000/admin/users/teacher/${teacherId}/${action}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to ${action} teacher`);
+                }
+
+                // Update the local state
+                setTeachers(teachers.map(teacher =>
+                    teacher._id === teacherId ? { 
+                        ...teacher, 
+                        banned: !currentBannedStatus,
+                        status: !currentBannedStatus ? "Inactive" : "Active"
+                    } : teacher
+                ));
+
+                setSnackbar({
+                    open: true,
+                    message: `Teacher ${action}ned successfully`,
+                    severity: 'success'
+                });
+            }
+        } catch (error) {
+            console.error('Error toggling ban status:', error);
+            setSnackbar({
+                open: true,
+                message: 'Failed to update teacher status',
+                severity: 'error'
+            });
+        }
     };
 
     return (
@@ -102,114 +237,217 @@ const Teachers = () => {
             <Box sx={{
                 p: 3,
                 display: 'flex',
-                flexWrap: 'wrap',
+                flexDirection: 'column',
                 gap: 3,
                 background: 'linear-gradient(to bottom, #f5f5f5 0%, #e8f5e9 100%)',
                 minHeight: '100vh'
             }}>
-                {teachers.map((teacher) => (
-                    <Card key={teacher.id} sx={{
-                        borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        transition: 'transform 0.3s, box-shadow 0.3s',
-                        '&:hover': {
-                            transform: 'translateY(-5px)',
-                            boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
-                        }
-                    }}>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <Avatar sx={{
-                                    bgcolor: teacher.banned ? 'error.main' : 
-                                             teacher.status === "Active" ? 'primary.main' : 'grey.500',
-                                    mr: 2,
-                                    width: 56,
-                                    height: 56
-                                }}>
-                                    {teacher.name.charAt(0)}
-                                </Avatar>
-                                <Box>
-                                    <Typography variant="h6" component="div" fontWeight="bold">
-                                        {teacher.name}
-                                        {teacher.banned && (
-                                            <Chip
-                                                label="Banned"
-                                                color="error"
+                {/* Search Bar */}
+                <Box sx={{ 
+                    width: '100%', 
+                    maxWidth: 600, 
+                    mx: 'auto',
+                    mb: 2
+                }}>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Search teachers by name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon color="action" />
+                                </InputAdornment>
+                            ),
+                            sx: { 
+                                borderRadius: 2, 
+                                backgroundColor: 'background.paper',
+                                '&:focus-within': {
+                                    borderColor: 'primary.main'
+                                }
+                            }
+                        }}
+                    />
+                </Box>
+
+                {/* Teachers Grid */}
+                <Box sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 3,
+                    justifyContent: 'center'
+                }}>
+                    {loading ? (
+                        Array.from({ length: 3 }).map((_, index) => (
+                            <Skeleton 
+                                key={index}
+                                variant="rectangular"
+                                width={400}
+                                height={300}
+                                sx={{ 
+                                    borderRadius: 3,
+                                    backgroundColor: 'rgba(46, 125, 50, 0.1)'
+                                }}
+                            />
+                        ))
+                    ) : teachers.length > 0 ? (
+                        teachers.map((teacher) => (
+                            <Card key={teacher._id} sx={{
+                                borderRadius: 3,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                transition: 'transform 0.3s, box-shadow 0.3s',
+                                '&:hover': {
+                                    transform: 'translateY(-5px)',
+                                    boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
+                                }
+                            }}>
+                                <CardContent>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                        <Avatar sx={{
+                                            bgcolor: teacher.banned ? 'error.main' : 
+                                                     teacher.status === "Active" ? 'primary.main' : 'grey.500',
+                                            mr: 2,
+                                            width: 56,
+                                            height: 56
+                                        }}>
+                                            {teacher.name.charAt(0)}
+                                        </Avatar>
+                                        <Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="h6" component="div" fontWeight="bold">
+                                                    {teacher.name}
+                                                </Typography>
+                                                {teacher.verified && (
+                                                    <VerifiedIcon 
+                                                        sx={{ 
+                                                            color: '#1976d2',
+                                                            fontSize: '1.2rem'
+                                                        }} 
+                                                    />
+                                                )}
+                                                {teacher.banned && (
+                                                    <Chip
+                                                        label="Banned"
+                                                        color="error"
+                                                        size="small"
+                                                        sx={{ ml: 1, fontSize: '0.7rem' }}
+                                                    />
+                                                )}
+                                            </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {teacher.qualification}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+
+                                    <Divider sx={{ my: 2 }} />
+
+                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                                        <Box>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                <strong>Email:</strong>
+                                            </Typography>
+                                            <Typography variant="body2">{teacher.email}</Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                <strong>Status:</strong>
+                                            </Typography>
+                                            <Chip 
+                                                label={teacher.status} 
                                                 size="small"
-                                                sx={{ ml: 1, fontSize: '0.7rem' }}
+                                                color={teacher.status === "Active" ? "success" : "default"}
+                                                variant="outlined"
                                             />
-                                        )}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {teacher.qualification}
-                                    </Typography>
-                                </Box>
-                            </Box>
+                                        </Box>
+                                    </Box>
 
-                            <Divider sx={{ my: 2 }} />
+                                    <Box sx={{ mb: 2, mt: 2 }}>
+                                        <Typography variant="body2" sx={{ mb: 1 }}>
+                                            <strong>Subjects:</strong>
+                                        </Typography>
+                                        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                                            {teacher.subjects.map((subject, index) => (
+                                                <Chip
+                                                    key={index}
+                                                    label={subject}
+                                                    size="small"
+                                                    color="primary"
+                                                    variant="outlined"
+                                                    sx={{
+                                                        borderColor: 'primary.light',
+                                                        color: 'primary.dark'
+                                                    }}
+                                                />
+                                            ))}
+                                        </Stack>
+                                    </Box>
 
-                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                                <Box>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                        <strong>Email:</strong>
-                                    </Typography>
-                                    <Typography variant="body2">{teacher.email}</Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                        <strong>Status:</strong>
-                                    </Typography>
-                                    <Chip 
-                                        label={teacher.status} 
-                                        size="small"
-                                        color={teacher.status === "Active" ? "success" : "default"}
-                                        variant="outlined"
-                                    />
-                                </Box>
-                            
-                            </Box>
-
-                            <Box sx={{ mb: 2, mt: 2 }}>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                    <strong>Subjects:</strong>
-                                </Typography>
-                                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                                    {teacher.subjects.map((subject, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={subject}
-                                            size="small"
-                                            color="primary"
-                                            variant="outlined"
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                                        <Button
+                                            onClick={() => handleBanToggle(teacher._id, teacher.banned)}
+                                            variant={teacher.banned ? "contained" : "outlined"}
+                                            color={teacher.banned ? "success" : "error"}
+                                            startIcon={teacher.banned ? <LockOpenIcon /> : <BlockIcon />}
+                                            size="medium"
                                             sx={{
-                                                borderColor: 'primary.light',
-                                                color: 'primary.dark'
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 'bold',
+                                                px: 3
                                             }}
-                                        />
-                                    ))}
-                                </Stack>
-                            </Box>
+                                        >
+                                            {teacher.banned ? 'Unban Teacher' : 'Ban Teacher'}
+                                        </Button>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : (
+                        <Box sx={{ 
+                            textAlign: 'center', 
+                            py: 6, 
+                            backgroundColor: 'white',
+                            borderRadius: 2,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                            width: '100%'
+                        }}>
+                            <Typography variant="body1" sx={{ 
+                                color: 'text.secondary', 
+                                fontStyle: 'italic',
+                                mb: 2
+                            }}>
+                                No teachers found matching your search.
+                            </Typography>
+                            <Button 
+                                variant="outlined" 
+                                color="primary"
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    fetchTeachers();
+                                }}
+                            >
+                                Clear Search
+                            </Button>
+                        </Box>
+                    )}
+                </Box>
 
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                                <Button
-                                    onClick={() => toggleBanTeacher(teacher.id)}
-                                    variant={teacher.banned ? "contained" : "outlined"}
-                                    color={teacher.banned ? "success" : "error"}
-                                    startIcon={teacher.banned ? <LockOpenIcon /> : <BlockIcon />}
-                                    size="medium"
-                                    sx={{
-                                        borderRadius: 2,
-                                        textTransform: 'none',
-                                        fontWeight: 'bold',
-                                        px: 3
-                                    }}
-                                >
-                                    {teacher.banned ? 'Unban Teacher' : 'Ban Teacher'}
-                                </Button>
-                            </Box>
-                        </CardContent>
-                    </Card>
-                ))}
+                <Snackbar
+                    open={snackbar.open}
+                    autoHideDuration={6000}
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                >
+                    <Alert 
+                        onClose={() => setSnackbar({ ...snackbar, open: false })} 
+                        severity={snackbar.severity}
+                        sx={{ width: '100%' }}
+                    >
+                        {snackbar.message}
+                    </Alert>
+                </Snackbar>
             </Box>
         </ThemeProvider>
     );

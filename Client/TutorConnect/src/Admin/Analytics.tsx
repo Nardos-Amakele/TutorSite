@@ -1,11 +1,15 @@
 import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
   Grid, 
   Paper, 
   Stack, 
-  Divider 
+  Divider,
+  Skeleton,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   People as PeopleIcon, 
@@ -21,9 +25,9 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2e7d32', // Deep green
-      light: '#4caf50', // Medium green
-      dark: '#1b5e20', // Dark green
+      main: '#2e7d32',
+      light: '#4caf50',
+      dark: '#1b5e20',
       contrastText: '#ffffff'
     },
     background: {
@@ -33,21 +37,13 @@ const theme = createTheme({
   },
 });
 
-// Hardcoded analytics data
-const dashboardData = {
-  totalUsers: 1243,
-  totalTeachers: 187,
-  verifiedTeachers: 153,
-  bannedUsers: 28,
-  totalStudents: 1056,
-  growthRate: 12.5,
-  recentActivity: [
-    "5 new teacher applications",
-    "3 teachers verified",
-    "2 users banned",
-    "15 new student signups"
-  ]
-};
+interface Stats {
+  totalStudents: number;
+  totalTeachers: number;
+  activeTeachers: number;
+  totalBookings: number;
+  bannedUsers: number;
+}
 
 const StatCard = ({ 
   title, 
@@ -106,6 +102,63 @@ const StatCard = ({
 };
 
 const Dashboard = () => {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('JAA_access_token='))
+        ?.split('=')[1];
+
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('http://localhost:5000/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch statistics');
+      }
+
+      const data = await response.json();
+      setStats(data.stats);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      setError('Failed to fetch statistics');
+      setSnackbar({
+        open: true,
+        message: 'Failed to fetch statistics',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateGrowthRate = () => {
+    if (!stats) return 0;
+    const totalUsers = stats.totalStudents + stats.totalTeachers;
+    // This is a placeholder calculation. In a real app, you'd want to compare with previous period
+    return ((totalUsers / 1000) * 100).toFixed(1);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ 
@@ -127,34 +180,50 @@ const Dashboard = () => {
         {/* Main Stats Grid */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <StatCard 
-              title="Total Users" 
-              value={dashboardData.totalUsers} 
-              icon={<PeopleIcon fontSize="large" />}
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
+            ) : (
+              <StatCard 
+                title="Total Users" 
+                value={stats ? stats.totalStudents + stats.totalTeachers : 0} 
+                icon={<PeopleIcon fontSize="large" />}
+              />
+            )}
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <StatCard 
-              title="Total Teachers" 
-              value={dashboardData.totalTeachers} 
-              icon={<TeacherIcon fontSize="large" />}
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
+            ) : (
+              <StatCard 
+                title="Total Teachers" 
+                value={stats?.totalTeachers || 0} 
+                icon={<TeacherIcon fontSize="large" />}
+              />
+            )}
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <StatCard 
-              title="Verified Teachers" 
-              value={dashboardData.verifiedTeachers} 
-              icon={<VerifiedIcon fontSize="large" />}
-              color="success"
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
+            ) : (
+              <StatCard 
+                title="Active Teachers" 
+                value={stats?.activeTeachers || 0} 
+                icon={<VerifiedIcon fontSize="large" />}
+                color="success"
+              />
+            )}
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <StatCard 
-              title="Banned Users" 
-              value={dashboardData.bannedUsers} 
-              icon={<BannedIcon fontSize="large" />}
-              color="error"
-            />
+            {loading ? (
+              <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 3 }} />
+            ) : (
+              <StatCard 
+                title="Banned Users" 
+                value={stats?.bannedUsers || 0} 
+                icon={<BannedIcon fontSize="large" />}
+                color="error"
+              />
+            )}
           </Grid>
         </Grid>
 
@@ -171,31 +240,38 @@ const Dashboard = () => {
                 Student Statistics
               </Typography>
               <Divider sx={{ mb: 3 }} />
-              <Stack direction="row" spacing={4}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h3" fontWeight="bold" color="primary.main">
-                    {dashboardData.totalStudents}
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    Total Students
-                  </Typography>
-                </Box>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  <GrowthIcon color="success" fontSize="large" />
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold" color="success.main">
-                      +{dashboardData.growthRate}%
+              {loading ? (
+                <Stack direction="row" spacing={4}>
+                  <Skeleton variant="rectangular" width={120} height={80} />
+                  <Skeleton variant="rectangular" width={120} height={80} />
+                </Stack>
+              ) : (
+                <Stack direction="row" spacing={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h3" fontWeight="bold" color="primary.main">
+                      {stats?.totalStudents || 0}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Growth Rate
+                    <Typography variant="body1" color="text.secondary">
+                      Total Students
                     </Typography>
                   </Box>
-                </Box>
-              </Stack>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <GrowthIcon color="success" fontSize="large" />
+                    <Box>
+                      <Typography variant="h5" fontWeight="bold" color="success.main">
+                        +{calculateGrowthRate()}%
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Growth Rate
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Stack>
+              )}
             </Paper>
           </Grid>
 
@@ -210,9 +286,15 @@ const Dashboard = () => {
                 Recent Activity
               </Typography>
               <Divider sx={{ mb: 3 }} />
-              <Stack spacing={2}>
-                {dashboardData.recentActivity.map((activity, index) => (
-                  <Box key={index} sx={{ 
+              {loading ? (
+                <Stack spacing={2}>
+                  {[1, 2, 3, 4].map((_, index) => (
+                    <Skeleton key={index} variant="rectangular" height={24} />
+                  ))}
+                </Stack>
+              ) : (
+                <Stack spacing={2}>
+                  <Box sx={{ 
                     display: 'flex', 
                     alignItems: 'center',
                     gap: 2
@@ -223,13 +305,66 @@ const Dashboard = () => {
                       borderRadius: '50%',
                       backgroundColor: 'primary.main'
                     }} />
-                    <Typography>{activity}</Typography>
+                    <Typography>{stats?.totalBookings || 0} total bookings</Typography>
                   </Box>
-                ))}
-              </Stack>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 2
+                  }}>
+                    <Box sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main'
+                    }} />
+                    <Typography>{stats?.activeTeachers || 0} active teachers</Typography>
+                  </Box>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 2
+                  }}>
+                    <Box sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main'
+                    }} />
+                    <Typography>{stats?.bannedUsers || 0} banned users</Typography>
+                  </Box>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: 2
+                  }}>
+                    <Box sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'primary.main'
+                    }} />
+                    <Typography>{stats?.totalStudents || 0} total students</Typography>
+                  </Box>
+                </Stack>
+              )}
             </Paper>
           </Grid>
         </Grid>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

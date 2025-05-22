@@ -1,5 +1,7 @@
+// eslint-disable-next-line no-unused-vars
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useContext } from 'react';
+import { UserContext } from "../UserContext";
 import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import MuiDrawer from '@mui/material/Drawer';
@@ -20,7 +22,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import Profile from './Profile';
@@ -29,7 +30,10 @@ import Booked from './Booked';
 import Resources from './Resources';
 import Requests from './Requests'
 import Logo from '../Landing/media/logo.png'
-
+import { useNavigate } from "react-router-dom";
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 const drawerWidth = 240;
 
@@ -93,10 +97,57 @@ const CustomBox1 = styled(Box)(({ theme }) => ({
 
 }));
 
-
 const TeacherDashboard = () => {
     const [open, setOpen] = useState(true);
     const [show, setShow] = useState('profile');
+    const navigate = useNavigate();
+    const MySwal = withReactContent(Swal);
+    const { name, verified } = useContext(UserContext);
+
+    async function handleLogout() {
+        try {
+            const result = await MySwal.fire({
+                title: 'Are you sure you want to logout?',
+                text: "You will need to login again to access your account.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#4CAF50',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, logout',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                // Clear all auth-related data
+                localStorage.removeItem('token');
+                document.cookie = 'JAA_access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                
+                MySwal.fire({
+                    title: 'Logged out successfully!',
+                    text: 'Redirecting to home page...',
+                    icon: 'success',
+                    position: 'center',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    didOpen: () => {
+                        MySwal.showLoading()
+                    },
+                }).then(() => {
+                    navigate('/');
+                });
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            MySwal.fire({
+                title: 'Error',
+                text: 'An unexpected error occurred. Please try again.',
+                icon: 'error',
+                position: 'center',
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+    }
 
     const toggleDrawer = () => {
         setOpen(!open);
@@ -111,8 +162,16 @@ const TeacherDashboard = () => {
                         <IconButton edge="start" color="inherit" onClick={toggleDrawer} sx={{ marginRight: '36px', ...(open && { display: 'none' }) }}>
                             <MenuIcon />
                         </IconButton>
-                        <Typography component="h1" variant="h6" color="inherit" sx={{ flexGrow: 1 }}>
-                            Welcome, Teacher
+                        <Typography component="h1" variant="h6" color="inherit" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {`Welcome, ${name}`}
+                            {verified && (
+                                <VerifiedIcon 
+                                    sx={{ 
+                                        color: '#1976d2',
+                                        fontSize: '1.2rem'
+                                    }} 
+                                />
+                            )}
                         </Typography>
                         <IconButton color="inherit">
                             <Badge badgeContent={4} color="primary">
@@ -153,7 +212,7 @@ const TeacherDashboard = () => {
                             </ListItemIcon>
                             <ListItemText primary="Resources" />
                         </ListItemButton>
-                        <ListItemButton onClick={() => alert('Logout')}>
+                        <ListItemButton onClick={handleLogout}>
                             <ListItemIcon><LogoutIcon /></ListItemIcon>
                             <ListItemText primary="Log out" />
                         </ListItemButton>

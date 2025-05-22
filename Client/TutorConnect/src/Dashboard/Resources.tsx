@@ -44,40 +44,57 @@ const Resources = () => {
   });
 
   // Fetch resources from the backend
-  const fetchResources = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch("http://localhost:5000/student/resources", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+ const fetchResources = async () => {
+  try {
+    setLoading(true);
+    const cookieString = document.cookie; // New line for cookie retrieval
+    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setResources(data.Resources);
-        setError(null);
-      } else {
-        setError(data.msg || 'Failed to fetch resources');
-        setSnackbar({
-          open: true,
-          message: data.msg || 'Failed to fetch resources',
-          severity: 'error'
-        });
-      }
-    } catch (error) {
-      setError('Error fetching resources');
+    if (!tokenMatch) {
+      setError('Authentication token not found'); // New error handling
       setSnackbar({
         open: true,
-        message: 'Error fetching resources',
+        message: 'Please log in to view resources',
         severity: 'error'
       });
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    const token = tokenMatch.split('=')[1]; // New line to extract token
+
+    const response = await fetch("http://localhost:5000/student/resources", {
+      headers: {
+        "Content-Type": "application/json", // Added content type
+        "Authorization": `Bearer ${token}` // Updated to use the token from cookies
+      },
+      credentials: 'include' // Include cookies if needed
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      setResources(data.Resources);
+      setError(null);
+    } else {
+      setError(data.msg || 'Failed to fetch resources');
+      setSnackbar({
+        open: true,
+        message: data.msg || 'Failed to fetch resources',
+        severity: 'error'
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching resources:', error); // Added logging
+    setError('Error fetching resources');
+    setSnackbar({
+      open: true,
+      message: 'Error fetching resources',
+      severity: 'error'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch resources on component mount
   React.useEffect(() => {

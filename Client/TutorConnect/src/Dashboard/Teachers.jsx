@@ -22,6 +22,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -60,69 +61,103 @@ const Teachers = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const fetchTeachers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch("http://localhost:5000/student/teachers", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+const fetchTeachers = async () => {
+  try {
+    const cookieString = document.cookie; // New line for cookie retrieval
+    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setTeachers(data.teachers);
-        setError(null);
-      } else {
-        setError(data.msg || 'Failed to fetch teachers');
-        setSnackbar({
-          open: true,
-          message: data.msg || 'Failed to fetch teachers',
-          severity: 'error'
-        });
-      }
-    } catch (err) {
-      setError('Error fetching teachers');
+    if (!tokenMatch) {
+      setError('Authentication token not found'); // New error handling
       setSnackbar({
         open: true,
-        message: 'Error fetching teachers',
+        message: 'Please log in to view your teachers',
+        severity: 'error'
+      });
+      return;
+    }
+
+    const token = tokenMatch.split('=')[1]; // New line to extract token
+
+    const response = await fetch("http://localhost:5000/student/teachers", {
+      headers: {
+        "Content-Type": "application/json", // Added content type
+        "Authorization": `Bearer ${token}` // Updated to use the token from cookies
+      },
+      credentials: 'include' // Include cookies if needed
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      setTeachers(data.teachers);
+      setError(null);
+    } else {
+      setError(data.msg || 'Failed to fetch teachers');
+      setSnackbar({
+        open: true,
+        message: data.msg || 'Failed to fetch teachers',
         severity: 'error'
       });
     }
-  };
+  } catch (err) {
+    console.error('Error fetching teachers:', err); // Added logging
+    setError('Error fetching teachers');
+    setSnackbar({
+      open: true,
+      message: 'Error fetching teachers',
+      severity: 'error'
+    });
+  }
+};
 
-  const searchTeachers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/student/teachers/search?name=${searchQuery}`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+ const searchTeachers = async () => {
+  try {
+    const cookieString = document.cookie; // New line for cookie retrieval
+    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        setTeachers(data.teachers);
-        setError(null);
-      } else {
-        setError(data.msg || 'Failed to search teachers');
-        setSnackbar({
-          open: true,
-          message: data.msg || 'Failed to search teachers',
-          severity: 'error'
-        });
-      }
-    } catch (err) {
-      setError('Error searching teachers');
+    if (!tokenMatch) {
+      setError('Authentication token not found'); // New error handling
       setSnackbar({
         open: true,
-        message: 'Error searching teachers',
+        message: 'Please log in to search for teachers',
+        severity: 'error'
+      });
+      return;
+    }
+
+    const token = tokenMatch.split('=')[1]; // New line to extract token
+
+    const response = await fetch(`http://localhost:5000/student/teachers/search?name=${searchQuery}`, {
+      headers: {
+        "Content-Type": "application/json", // Added content type
+        "Authorization": `Bearer ${token}` // Updated to use the token from cookies
+      },
+      credentials: 'include' // Include cookies if needed
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      setTeachers(data.teachers);
+      setError(null);
+    } else {
+      setError(data.msg || 'Failed to search teachers');
+      setSnackbar({
+        open: true,
+        message: data.msg || 'Failed to search teachers',
         severity: 'error'
       });
     }
-  };
+  } catch (err) {
+    console.error('Error searching teachers:', err); // Added logging
+    setError('Error searching teachers');
+    setSnackbar({
+      open: true,
+      message: 'Error searching teachers',
+      severity: 'error'
+    });
+  }
+};
 
   const handleClickOpen = (teacher) => {
     setSelectedTeacher(teacher);
@@ -203,9 +238,19 @@ const Teachers = () => {
               {teacher.name.charAt(0)}
             </Avatar>
             <Box>
-              <Typography variant="h6" component="div" fontWeight="bold">
-                {teacher.name}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" component="div" fontWeight="bold">
+                  {teacher.name}
+                </Typography>
+                {teacher.verified && (
+                  <VerifiedIcon 
+                    sx={{ 
+                      color: 'primary.main',
+                      fontSize: '1.2rem'
+                    }} 
+                  />
+                )}
+              </Box>
               <Typography variant="body2" color="text.secondary">
                 {teacher.qualification || 'Qualified Teacher'}
               </Typography>

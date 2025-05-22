@@ -10,8 +10,11 @@ const { AdminModel } = require("../models/AdminModel");
 
 const registerUser = async (req, res) => {
   try {
-    const { email, password, name, attachments, availability, subjects, hourlyRate, } = req.body;
+    const { email, password, name, attachments, availability, subjects, hourlyRate, qualification } = req.body;
     const { role } = req.params;
+
+    if(!password) return res.status(400).send({ msg: "Password is required" });
+    
 
     // Validate role
     if (!["student", "teacher", "admin"].includes(role)) {
@@ -51,6 +54,7 @@ const registerUser = async (req, res) => {
           email,
           password: hashedPassword,
           name,
+          qualification,
           role: "teacher",
           attachments, 
           availability: availability || [], 
@@ -141,6 +145,7 @@ const loginUser = async (req, res) => {
     res.status(500).send({ msg: error.message });
   }
 };
+
 
 const logoutUser = async (req, res) => {
   try {

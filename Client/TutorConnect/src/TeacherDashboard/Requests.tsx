@@ -9,7 +9,9 @@ import {
   Stack,
   Chip,
   Divider,
-  Grid
+  Grid,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import EventIcon from '@mui/icons-material/Event';
@@ -17,6 +19,25 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import EmailIcon from '@mui/icons-material/Email';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+
+interface TimeSlot {
+  start: string;
+  end: string;
+}
+
+interface Booking {
+  _id: string;
+  subject: string;
+  date: string;
+  timeSlot: TimeSlot;
+  studentEmail: string;
+  status: string;
+}
+
+interface ApiResponse {
+  bookings?: Booking[];
+  msg?: string;
+}
 
 // Create green theme
 const theme = createTheme({
@@ -61,52 +82,205 @@ const theme = createTheme({
   }
 });
 
-const bookingsData = [
-  {
-    id: 1,
-    date: '2025-05-22',
-    day: 'Wednesday',
-    time: '10:00 AM - 11:00 AM',
-    studentEmail: 'student1@example.com',
-    subject: 'Mathematics',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    date: '2025-05-23',
-    day: 'Thursday',
-    time: '1:00 PM - 2:00 PM',
-    studentEmail: 'student2@example.com',
-    subject: 'Science',
-    status: 'pending'
-  },
-  {
-    id: 3,
-    date: '2025-05-24',
-    day: 'Friday',
-    time: '3:00 PM - 4:00 PM',
-    studentEmail: 'student3@example.com',
-    subject: 'English',
-    status: 'pending'
-  },
-];
-
 const Requests = () => {
-  const [bookings, setBookings] = React.useState(bookingsData);
+  const [bookings, setBookings] = React.useState<Booking[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
 
-  const handleConfirm = (id) => {
-    setBookings(bookings.map(booking => 
-      booking.id === id ? {...booking, status: 'confirmed'} : booking
-    ));
-    console.log(`Confirmed booking ID: ${id}`);
+  // Fetch pending bookings
+  const fetchPendingBookings = async () => {
+    try {
+      setLoading(true);
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+
+      if (!tokenMatch) {
+        setError('Authentication token not found');
+        setSnackbar({
+          open: true,
+          message: 'Please log in to view pending requests',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:5000/teacher/bookings/pending", {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data: ApiResponse = await response.json();
+      
+      if (response.ok) {
+        if (data.bookings) {
+          setBookings(data.bookings);
+          setError(null);
+        } else {
+          setBookings([]);
+          setError(null); // No error, just no bookings
+        }
+      } else if (response.status === 404) {
+        // Handle 404 as a valid case - no pending bookings
+        setBookings([]);
+        setError(null);
+      } else {
+        setError(data.msg || 'Failed to fetch pending bookings');
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch pending bookings',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching pending bookings:', error);
+      setError('Error fetching pending bookings');
+      setSnackbar({
+        open: true,
+        message: 'Error fetching pending bookings',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDecline = (id) => {
-    setBookings(bookings.map(booking => 
-      booking.id === id ? {...booking, status: 'declined'} : booking
-    ));
-    console.log(`Declined booking ID: ${id}`);
+  // Confirm booking
+  const handleConfirm = async (bookingId) => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch(`http://localhost:5000/teacher/bookings/${bookingId}/confirm`, {
+        method: 'PATCH',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: 'Booking confirmed successfully',
+          severity: 'success'
+        });
+        fetchPendingBookings(); // Refresh pending bookings
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to confirm booking',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error confirming booking',
+        severity: 'error'
+      });
+    }
   };
+
+  // Decline booking
+  const handleDecline = async (bookingId) => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch(`http://localhost:5000/teacher/bookings/${bookingId}/decline`, {
+        method: 'DELETE',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: 'Booking declined successfully',
+          severity: 'success'
+        });
+        fetchPendingBookings(); // Refresh pending bookings
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to decline booking',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error declining booking',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  // Fetch pending bookings on component mount
+  React.useEffect(() => {
+    fetchPendingBookings();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography>Loading pending requests...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -133,7 +307,7 @@ const Requests = () => {
           }}>
             Pending Requests
             <Chip 
-              label={`${bookings.filter(b => b.status === 'pending').length} New`}
+              label={`${bookings.length} New`}
               color="primary"
               size="medium" // Larger chip
               sx={{ 
@@ -146,158 +320,170 @@ const Requests = () => {
           </Typography>
 
           <Grid container spacing={4} sx={{ justifyContent: 'center' }}> {/* Centered grid */}
-            {bookings.map((booking) => (
-              <Grid item key={booking.id} xs={12} sx={{ 
-                display: 'flex',
-                justifyContent: 'center',
-                width: '100%'
-              }}>
-                <Card sx={{
-                  borderRadius: 3, // More rounded corners
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 8px 24px rgba(46, 125, 50, 0.2)'
-                  },
+            {bookings.length === 0 ? (
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    No pending requests found
+                  </Typography>
+                </Box>
+              </Grid>
+            ) : (
+              bookings.map((booking) => (
+                <Grid item key={booking._id} xs={12} sx={{ 
+                  display: 'flex',
+                  justifyContent: 'center',
                   width: '100%'
                 }}>
-                  <CardActionArea>
-                    <CardContent sx={{ p: 4 }}> {/* Increased padding */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        mb: 3 // Increased margin
-                      }}>
-                        <Typography variant="h5" sx={{ // Larger text
-                          fontWeight: 700,
-                          color: 'primary.dark'
+                  <Card sx={{
+  borderRadius: 3, // More rounded corners
+  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+  '&:hover': {
+    transform: 'translateY(-5px)',
+    boxShadow: '0 8px 24px rgba(46, 125, 50, 0.2)'
+  },
+  width: '100%', // Use full width of the Grid item
+  maxWidth: '400px', // Set a fixed maximum width for cards
+  margin: '0 auto' // Center the card within the Grid item
+}}>
+                    <CardActionArea>
+                      <CardContent sx={{ p: 4 }}> {/* Increased padding */}
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mb: 3 // Increased margin
                         }}>
-                          {booking.subject}
-                        </Typography>
-                        {booking.status !== 'pending' && (
-                          <Chip
-                            label={booking.status === 'confirmed' ? 'Confirmed' : 'Declined'}
-                            color={booking.status === 'confirmed' ? 'primary' : 'error'}
-                            size="medium"
-                            sx={{ 
-                              fontWeight: 700,
-                              fontSize: '0.9rem'
-                            }}
-                          />
-                        )}
-                      </Box>
-
-                      <Grid container spacing={3} sx={{ mb: 3 }}> {/* Using Grid for layout */}
-                        <Grid item xs={12} md={4}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <EventIcon sx={{ 
-                              mr: 2, 
-                              color: 'primary.main',
-                              fontSize: '1.5rem'
-                            }} />
-                            <Box>
-                              <Typography variant="subtitle2" color="text.secondary">
-                                Date
-                              </Typography>
-                              <Typography variant="body1">
-                                {booking.day}, {booking.date}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <ScheduleIcon sx={{ 
-                              mr: 2, 
-                              color: 'primary.main',
-                              fontSize: '1.5rem'
-                            }} />
-                            <Box>
-                              <Typography variant="subtitle2" color="text.secondary">
-                                Time Slot
-                              </Typography>
-                              <Typography variant="body1">
-                                {booking.time}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <EmailIcon sx={{ 
-                              mr: 2, 
-                              color: 'primary.main',
-                              fontSize: '1.5rem'
-                            }} />
-                            <Box>
-                              <Typography variant="subtitle2" color="text.secondary">
-                                Student Email
-                              </Typography>
-                              <Typography variant="body1">
-                                {booking.studentEmail}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                      </Grid>
-
-                      {booking.status === 'pending' && (
-                        <>
-                          <Divider sx={{ my: 3 }} />
-                          <Box sx={{ 
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            gap: 3
+                          <Typography variant="h5" sx={{ // Larger text
+                            fontWeight: 700,
+                            color: 'primary.dark'
                           }}>
-                            <Button 
-                              variant="contained" 
-                              color="primary" 
-                              onClick={() => handleConfirm(booking.id)}
-                              startIcon={<CheckCircleIcon sx={{ fontSize: '1.2rem' }} />}
-                              sx={{
-                                boxShadow: '0 3px 6px rgba(46, 125, 50, 0.3)',
-                                '&:hover': {
-                                  boxShadow: '0 6px 12px rgba(46, 125, 50, 0.4)',
-                                  backgroundColor: 'primary.dark'
-                                },
-                                py: 1.5,
-                                px: 3
-                              }}
-                            >
-                              Confirm Request
-                            </Button>
-                            <Button 
-                              variant="outlined" 
-                              color="error"
-                              onClick={() => handleDecline(booking.id)}
-                              startIcon={<CancelIcon sx={{ fontSize: '1.2rem' }} />}
-                              sx={{
-                                border: '2px solid',
-                                borderColor: 'error.main',
-                                color: 'error.main',
-                                '&:hover': {
-                                  backgroundColor: 'rgba(244, 67, 54, 0.04)',
-                                  borderColor: 'error.dark',
-                                  border: '2px solid'
-                                },
-                                py: 1.5,
-                                px: 3
-                              }}
-                            >
-                              Decline Request
-                            </Button>
-                          </Box>
-                        </>
-                      )}
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            ))}
+                            {booking.subject}
+                          </Typography>
+                        </Box>
+
+                        <Grid container spacing={3} sx={{ mb: 3 }}> {/* Using Grid for layout */}
+                          <Grid item xs={12} md={4}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <EventIcon sx={{ 
+                                mr: 2, 
+                                color: 'primary.main',
+                                fontSize: '1.5rem'
+                              }} />
+                              <Box>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Date
+                                </Typography>
+                                <Typography variant="body1">
+                                  {new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <ScheduleIcon sx={{ 
+                                mr: 2, 
+                                color: 'primary.main',
+                                fontSize: '1.5rem'
+                              }} />
+                              <Box>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Time Slot
+                                </Typography>
+                                <Typography variant="body1">
+                                  {booking.timeSlot.start} - {booking.timeSlot.end}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} md={4}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <EmailIcon sx={{ 
+                                mr: 2, 
+                                color: 'primary.main',
+                                fontSize: '1.5rem'
+                              }} />
+                              <Box>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                  Student Email
+                                </Typography>
+                                <Typography variant="body1">
+                                  {booking.studentEmail}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        </Grid>
+
+                        <Divider sx={{ my: 3 }} />
+                        <Box sx={{ 
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          gap: 3
+                        }}>
+                          <Button 
+                            variant="contained" 
+                            color="primary" 
+                            onClick={() => handleConfirm(booking._id)}
+                            startIcon={<CheckCircleIcon sx={{ fontSize: '1.2rem' }} />}
+                            sx={{
+                              boxShadow: '0 3px 6px rgba(46, 125, 50, 0.3)',
+                              '&:hover': {
+                                boxShadow: '0 6px 12px rgba(46, 125, 50, 0.4)',
+                                backgroundColor: 'primary.dark'
+                              },
+                              py: 1.5,
+                              px: 3
+                            }}
+                          >
+                            Confirm Request
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            color="error"
+                            onClick={() => handleDecline(booking._id)}
+                            startIcon={<CancelIcon sx={{ fontSize: '1.2rem' }} />}
+                            sx={{
+                              border: '2px solid',
+                              borderColor: 'error.main',
+                              color: 'error.main',
+                              '&:hover': {
+                                backgroundColor: 'rgba(244, 67, 54, 0.04)',
+                                borderColor: 'error.dark',
+                                border: '2px solid'
+                              },
+                              py: 1.5,
+                              px: 3
+                            }}
+                          >
+                            Decline Request
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              ))
+            )}
           </Grid>
         </Box>
       </Box>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 };

@@ -1,5 +1,6 @@
 // import * as React from 'react';
 import Logo from '../Landing/media/logo.png'
+// eslint-disable-next-line no-unused-vars
 import * as React from 'react';
 import { useState, useContext, useEffect } from 'react'
 import { UserContext } from "../UserContext";
@@ -15,8 +16,6 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Badge from '@mui/material/Badge';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
 import Link from '@mui/material/Link';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -24,19 +23,13 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import ListSubheader from '@mui/material/ListSubheader';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LogoutIcon from '@mui/icons-material/Logout';
-import LayersIcon from '@mui/icons-material/Layers';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import MainListItems from './MainListItems'
-import Chart from './Chart';
 import Teachers from './Teachers';
 import Booked from './Booked';
-import TeacherCard from './TeacherCard';
 import Profile from './Profile';
 import Resources from './Resources';
 
@@ -110,8 +103,8 @@ const defaultTheme = createTheme();
 
 const Dashboard = () => {
   const [open, setOpen] = useState(true);
-  const [teachers, setTeachers] = useState([]);
-  const [booked, setBooked] = useState([]);
+  const [, setTeachers] = useState([]);
+  const [, setBooked] = useState([]);
 
 
   const [show, setShow] = useState('profile');
@@ -168,7 +161,7 @@ const Dashboard = () => {
     setOpen(!open);
   };
 
-  const { name, id, email, isVarified } = useContext(UserContext)
+  const { name } = useContext(UserContext)
 
   async function fetchTeachers() {
     try {
