@@ -1,110 +1,96 @@
 const jwt = require('jsonwebtoken');
-const { client } = require('../Services/redisClient');
+const { verifyAccessToken } = require('../services/tokenService');
+// const { client } = require('../services/redisClient');
 const { newAccessToken } = require('../controllers/authController');
 require('dotenv').config();
 const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
 
+
+
 const auth = async (req, res, next) => {
   try {
-    // Get tokens from cookies and headers
-    const { JAA_access_token, JAA_refresh_token } = req.cookies;
-    const access_token = req.headers.authorization?.split(' ')[1] || JAA_access_token;
+    const { accessToken, refreshToken } = req.cookies;
+    const access_token = req.headers.authorization?.split(' ')[1] || accessToken;
 
     if (!access_token) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'No token provided, please login!' 
+      console.log('No access token provided');
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided, please login!',
       });
     }
 
-    // Check if token is blacklisted
-    const isTokenBlacklisted = await client.get(access_token);
-    if (isTokenBlacklisted) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Please login again, already logged out' 
-      });
-    }
+    // Use the modular verifyAccessToken function
+    const payload = await verifyAccessToken(access_token);
 
-    // Verify token
-    jwt.verify(
-      access_token,
-      process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
-      async (err, payload) => {
-        if (err) {
-          if (err.name === 'TokenExpiredError') {
-            // Use the existing newAccessToken function
-            try {
-              if (!JAA_refresh_token) {
-                return res.status(401).json({ 
-                  success: false, 
-                  message: 'Refresh token not found. Please login again.' 
-                });
-              }
+    if (!payload) {
+      console.log('Invalid or expired access token');
 
-              // Create a mock response object to use with newAccessToken
-              const mockRes = {
-                cookie: (name, value, options) => {
-                  res.cookie(name, value, options);
-                },
-                status: (code) => ({
-                  send: (data) => {
-                    if (code === 200 && data.msg === 'Token generated') {
-                      // Token was successfully refreshed
-                      req.user = {
-                        userId: jwt.verify(data.newAccessToken, process.env.JWT_ACCESS_TOKEN_SECRET_KEY).userId
-                      };
-                      return next();
-                    }
-                    return res.status(code).json(data);
-                  }
-                })
-              };
-
-              // Call the existing newAccessToken function
-              await newAccessToken({ cookies: { JAA_refresh_token } }, mockRes);
-            } catch (refreshError) {
-              return res.status(500).json({ 
-                success: false, 
-                message: 'Error refreshing token', 
-                error: refreshError.message 
-              });
-            }
-          } else {
-            return res.status(401).json({ 
-              success: false, 
-              message: err.message 
-            });
-          }
-        }
-
-        // Token is valid
-        if (payload) {
-          // Maintain existing behavior of attaching userId to req.body
-          req.body.userId = payload.userId;
-          // Also attach to req.user for better organization
-          req.user = {
-            userId: payload.userId,
-            role: payload.role // if role is included in the token
-          };
-          next();
-        } else {
-          return res.status(401).json({ 
-            success: false, 
-            message: 'Invalid token payload' 
-          });
-        }
+      if (!refreshToken) {
+        return res.status(401).json({
+          success: false,
+          message: 'Refresh token not found. Please login again.',
+        });
       }
-    );
+
+      try {
+        // Mock response to work with newAccessToken utility
+        const mockRes = {
+          cookie: (name, value, options) => res.cookie(name, value, options),
+          status: (code) => ({
+            send: (data) => {
+              if (code === 200 && data.msg === 'Token generated') {
+                const newPayload = jwt.verify(
+                  data.newAccessToken,
+                  process.env.JWT_ACCESS_TOKEN_SECRET_KEY
+                );
+
+                req.body.userId = newPayload.userId;
+                req.user = {
+                  userId: newPayload.userId,
+                  role: newPayload.role,
+                };
+
+                return next();
+              }
+              return res.status(code).json(data);
+            },
+          }),
+        };
+
+        await newAccessToken({ cookies: { refreshToken } }, mockRes);
+      } catch (refreshError) {
+        console.log('Error refreshing token:', refreshError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error refreshing token',
+          error: refreshError.message,
+        });
+      }
+
+      return; // Important: exit here to prevent proceeding without calling next()
+    }
+
+    // Access token is valid
+    req.body.userId = payload.userId;
+    req.user = {
+      userId: payload.userId,
+      role: payload.role,
+    };
+
+    console.log('User authenticated:', req.user);
+    next();
   } catch (error) {
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Authentication error', 
-      error: error.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication error',
+      error: error.message,
     });
   }
 };
+
+
 
 const checkBanStatus = async (req, res, next) => {
   try {

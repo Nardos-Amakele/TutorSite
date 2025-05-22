@@ -16,34 +16,34 @@ const { TeacherRouter } = require("./routes/teacherRoutes");
 const { adminRouter } = require("./routes/adminRoutes");
 
 // Import error handling middleware
-const { errorHandler } = require("./middleware/error.middleware");
+const { errorHandler } = require("./middlewares/errorMiddleware");
 
 // Basic middleware
 app.use(express.json());
 app.use(cookieParser());
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
-  credentials: true, // Allow cookies to be sent with requests
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// app.use(cors({
+//   origin: process.env.CLIENT_URL || "http://localhost:3000",
+//   credentials: true, // Allow cookies to be sent with requests
+//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization']
+// }));
 
 // Session configuration
-app.use(
-  expressSession({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production', // set to true if using HTTPS
-      httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
+// app.use(
+//   expressSession({
+//     secret: process.env.SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: true,
+//     cookie: {
+//       secure: process.env.NODE_ENV === 'production', 
+//       httpOnly: true,
+//       sameSite: 'strict',
+//       maxAge: 24 * 60 * 60 * 1000, 
+//     },
+//   })
+// );
 
 // API Routes
 app.use("/auth", AuthRouter);  // Authentication routes
@@ -64,7 +64,7 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 // Start server and connect to database
-const PORT = process.env.PORT || 4500;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   try {
     await Connection;

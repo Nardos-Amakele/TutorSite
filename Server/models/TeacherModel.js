@@ -18,6 +18,11 @@ const TeacherSchema =mongoose.Schema({
       type: String,
       required: true
     },
+    role: {
+      type: String,
+      required: true,
+      default: "teacher"
+    },
     attachments: {
       type: [String],
       required: true

@@ -1,25 +1,9 @@
 const { StudentModel } = require("../models/StudentModel");
 const bcrypt = require("bcrypt");
 const { TeacherModel } = require("../models/TeacherModel");
-const Resource = require('../models/Resource');
+const Resource = require('../models/ResourceModel');
+const { BookingModel } = require("../models/BookingModel");
 
-const registerStudent = async (req, res) => {
-  try {
-    const { email, password, name } = req.body;
-    if (!email || !password || !name) return res.status(400).send({ msg: "All fields are required" });
-
-    const isUserPresent = await StudentModel.findOne({ email });
-    if (isUserPresent) return res.status(400).send({ msg: "Email already taken, try another email or login" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new StudentModel({ name, email, password: hashedPassword, role: "student" });
-    await newUser.save();
-
-    res.status(201).send({ msg: "Registration successful", user: newUser });
-  } catch (error) {
-    res.status(500).send({ error: "Registration failed", msg: error.message });
-  }
-};
 
 const searchTeachers = async (req, res) => {
   try {
@@ -41,7 +25,7 @@ const searchTeachers = async (req, res) => {
 // Get student profile
 const getStudentProfile = async (req, res) => {
   try {
-    const studentId = req.userId;
+    const studentId = req.body.userId;
     const student = await StudentModel.findById(studentId).select("-password");
     if (!student) return res.status(404).send({ msg: "Student not found" });
     res.status(200).send({ student });
@@ -52,14 +36,23 @@ const getStudentProfile = async (req, res) => {
 
 const updateStudentProfile = async (req, res) => {
   try {
-    const studentId = req.userId;
+    const studentId = req.body.userId;
     const updates = req.body;
+
+    if (!studentId) {
+      return res.status(400).send({ msg: "Student ID is required" });
+    }
 
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
 
     const updated = await StudentModel.findByIdAndUpdate(studentId, updates, { new: true });
+    
+    if (!updated) {
+      return res.status(404).send({ msg: "Student not found" });
+    }
+
     res.status(200).send({ msg: "Profile updated", student: updated });
   } catch (error) {
     res.status(500).send({ msg: error.message });
@@ -94,12 +87,12 @@ const updateStudentProfile = async (req, res) => {
 
 const bookTeacher = async (req, res) => {
   try {
-    const { teacherId, subject, date, timeSlot } = req.body;
-    const studentId = req.params.userId;
+    const { teacherId, subject, date, startTime, endTime } = req.body;
+    const studentId = req.body.userId;
     const dateObj = new Date(date);
     const dayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long" })
 
-    if (!teacherId || !subject || !date || !timeSlot?.start || !timeSlot?.end) {
+    if (!teacherId || !subject || !date || !startTime || !endTime) {
       return res.status(400).send({ msg: "Missing required booking information" });
     }
 
@@ -109,18 +102,20 @@ const bookTeacher = async (req, res) => {
     const teacher = await TeacherModel.findById(teacherId);
     if (!teacher) return res.status(404).send({ msg: "Teacher not found or doesn't teach this subject" });
 
+    // Check for booking conflicts using the new time structure
     const conflict = await BookingModel.findOne({
       teacher: teacherId,
       date: new Date(date),
       $or: [
         {
-          "timeSlot.start": { $lt: timeSlot.end, $gte: timeSlot.start }
+          "timeSlot.start": { $lt: endTime, $gte: startTime }
         },
         {
-          "timeSlot.end": { $gt: timeSlot.start, $lte: timeSlot.end }
+          "timeSlot.end": { $gt: startTime, $lte: endTime }
         }
       ]
     });
+
     if (conflict) {
       return res.status(400).send({ msg: "Teacher already booked for this time slot" });
     }
@@ -131,7 +126,10 @@ const bookTeacher = async (req, res) => {
       subject,
       day: dayOfWeek,
       date: new Date(date),
-      timeSlot,
+      timeSlot: {
+        start: startTime,
+        end: endTime
+      },
       status: "pending",
     });
 
@@ -297,18 +295,16 @@ function timeIsValid(start, end) {
 }
 
 module.exports = {
-    registerStudent,
-    searchTeachers,
-    getStudentProfile,
-    updateStudentProfile,
-    getResources,
-    // rateTeacher,
-    cancelBooking,
-    getBookings,
-    bookTeacher,
-    getTeachers,
-    completeBooking,
-    getAvailableSlots
+  getStudentProfile,
+  updateStudentProfile,
+  searchTeachers,
+  bookTeacher,
+  cancelBooking,
+  completeBooking,
+  getTeachers,
+  getBookings,
+  getResources,
+  getAvailableSlots
 
 };
 

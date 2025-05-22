@@ -6,77 +6,155 @@ require("dotenv").config();
 const {ResourceModel} = require('../models/ResourceModel');
 
 
-const registerTeacher = async (req, res) => {
-    try {
-    const { name, email, password, subjects } = req.body;
-    if (!name || !email || !password || !subjects)
-        return res.status(400).send({ msg: "All fields are required" });
-
-    const exists = await TeacherModel.findOne({ email });
-    if (exists) return res.status(400).send({ msg: "Email already in use" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newTeacher = new TeacherModel({ name, email, password: hashedPassword, subjects, role: "teacher" });
-    await newTeacher.save();
-
-    res.status(201).send({ msg: "Teacher registered successfully", teacher: newTeacher });
-  } catch (error) {
-    res.status(500).send({ msg: error.message });
-  }
-};
 
 const addAvailability = async (req, res) => {
-        try {
-        const teacherId = req.userId;
+    try {
+        const teacherId = req.body.userId;
         const { date, startTime, endTime } = req.body;
+
+        // Validate required fields
+        if (!date || !startTime || !endTime) {
+            return res.status(400).send({ 
+                msg: "date, startTime, and endTime are required" 
+            });
+        }
+
+        // Validate time format and logic
+        const start = new Date(`1970-01-01T${startTime}`);
+        const end = new Date(`1970-01-01T${endTime}`);
+        
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return res.status(400).send({ 
+                msg: "Invalid time format. Use HH:MM format (24-hour)" 
+            });
+        }
+
+        if (start >= end) {
+            return res.status(400).send({ 
+                msg: "startTime must be before endTime" 
+            });
+        }
+
+        // Convert date to day of week
         const dateObj = new Date(date);
-        const day = dateObj.toLocaleDateString("en-US", { weekday: "long" })
-    
-        if (!day || !startTime || !endTime)
-            return res.status(400).send({ msg: "day, startTime, and endTime are required" });
-    
+        const day = dateObj.toLocaleDateString("en-US", { weekday: "long" });
+
+        // Find teacher and update availability
         const teacher = await TeacherModel.findById(teacherId);
-        if (!teacher) return res.status(404).send({ msg: "Teacher not found" });
-    
-        const exists = teacher.availability.some(
-            (slot) => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
+        if (!teacher) {
+            return res.status(404).send({ msg: "Teacher not found" });
+        }
+
+        // Check for overlapping slots
+        const hasOverlap = teacher.availability.some(slot => {
+            if (slot.day !== day) return false;
+            
+            const existingStart = new Date(`1970-01-01T${slot.startTime}`);
+            const existingEnd = new Date(`1970-01-01T${slot.endTime}`);
+            
+            return (start < existingEnd && end > existingStart);
+        });
+
+        if (hasOverlap) {
+            return res.status(400).send({ 
+                msg: "This time slot overlaps with existing availability" 
+            });
+        }
+
+        // Add new availability slot
+        const newSlot = { day, startTime, endTime };
+        
+        // Use $addToSet to prevent duplicates
+        const updatedTeacher = await TeacherModel.findByIdAndUpdate(
+            teacherId,
+            { $addToSet: { availability: newSlot } },
+            { new: true }
         );
-    
-        if (!exists) {
-            teacher.availability.push({ day, startTime, endTime });
-            await teacher.save();
-        }
-    
-        res.status(200).send({ msg: "Availability added", availability: teacher.availability });
-        } catch (error) {
+
+        res.status(200).send({ 
+            msg: "Availability added successfully", 
+            availability: updatedTeacher.availability 
+        });
+    } catch (error) {
+        console.error("Add availability error:", error);
         res.status(500).send({ msg: error.message });
-        }
+    }
 };
 
 
 const removeAvailability = async (req, res) => {
-        try {
-            const teacherId = req.userId;
-            const { day, startTime, endTime } = req.body;
+    try {
+        const teacherId = req.body.userId;
+        const { date, startTime, endTime } = req.body;
 
-            const teacher = await TeacherModel.findById(teacherId);
-            if (!teacher) return res.status(404).send({ msg: "Teacher not found" });
+        const day = new Date(date).toLocaleDateString("en-US", { weekday: "long" });
+        
 
-            teacher.availability = teacher.availability.filter(
-            (slot) => !(slot.day === day && slot.startTime === startTime && slot.endTime === endTime)
-            );
-
-            await teacher.save();
-            res.status(200).send({ msg: "Availability removed", availability: teacher.availability });
-        } catch (error) {
-            res.status(500).send({ msg: error.message });
+        // Validate required fields
+        if (!teacherId || !day || !startTime || !endTime) {
+            return res.status(400).send({ 
+                msg: "Missing required fields. Please provide userId, day, startTime, and endTime"
+            });
         }
+
+        const teacher = await TeacherModel.findById(teacherId);
+        if (!teacher) {
+            return res.status(404).send({ msg: "Teacher not found" });
+        }
+
+        console.log("Current availability:", teacher.availability);
+
+        // Convert times to same format for comparison, with null checks
+        const normalizeTime = (time) => {
+            if (time === null || time === undefined) return '';
+            return String(time).trim();
+        };
+        
+        const originalLength = teacher.availability.length;
+        
+        teacher.availability = teacher.availability.filter(slot => {
+            if (!slot || typeof slot !== 'object') {
+                console.log("Invalid slot found:", slot);
+                return true; // Keep other slots, remove invalid ones
+            }
+
+            const matches = normalizeTime(slot.day) === normalizeTime(day) &&
+                          normalizeTime(slot.startTime) === normalizeTime(startTime) &&
+                          normalizeTime(slot.endTime) === normalizeTime(endTime);
+            
+            console.log("Comparing slot:", slot, "with input:", { day, startTime, endTime }, "matches:", matches);
+            return !matches;
+        });
+
+        if (teacher.availability.length === originalLength) {
+            return res.status(404).send({ 
+                msg: "No matching availability slot found",
+                searchedFor: { day, startTime, endTime },
+                currentAvailability: teacher.availability
+            });
+        }
+
+        await teacher.save();
+        console.log("Updated availability:", teacher.availability);
+        
+        res.status(200).send({ 
+            msg: "Availability removed successfully", 
+            availability: teacher.availability 
+        });
+    } catch (error) {
+        console.error("Error in removeAvailability:", error);
+        res.status(500).send({ 
+            msg: "Error removing availability",
+            error: error.message,
+            details: "Please ensure all required fields (userId, day, startTime, endTime) are provided"
+        });
+    }
 };
 
 
 const addSubject = async (req, res) => {
     try {
-      const teacherId = req.userId;
+      const teacherId = req.body.userId;
       const { subjects } = req.body; // Accept an array
   
       const updated = await TeacherModel.findByIdAndUpdate(
@@ -89,28 +167,101 @@ const addSubject = async (req, res) => {
     } catch (error) {
       res.status(500).send({ msg: error.message });
     }
-  };
+};
 
 const removeSubject = async (req, res) => {
     try {
-      const teacherId = req.userId;
+      const teacherId = req.body.userId;
       const { subject } = req.body;
-  
+
+      // Validate input
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+      if (!subject) {
+        return res.status(400).send({ msg: "Subject is required" });
+      }
+
+      // Find teacher first to check if they exist and if they have the subject
+      const teacher = await TeacherModel.findById(teacherId);
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found" });
+      }
+
+      console.log("Current subjects:", teacher.subjects);
+      console.log("Attempting to remove subject:", subject);
+
+      // Check if subject exists in teacher's list
+      if (!teacher.subjects.includes(subject)) {
+        return res.status(400).send({ 
+          msg: "Subject not found in teacher's list",
+          currentSubjects: teacher.subjects,
+          attemptedToRemove: subject
+        });
+      }
+
       const updated = await TeacherModel.findByIdAndUpdate(
         teacherId,
         { $pull: { subjects: subject } },
         { new: true }
       );
+
+      console.log("Updated subjects:", updated.subjects);
   
-      res.status(200).send({ msg: "Subject removed", teacher: updated });
+      res.status(200).send({ 
+        msg: "Subject removed successfully", 
+        removedSubject: subject,
+        currentSubjects: updated.subjects 
+      });
     } catch (error) {
-      res.status(500).send({ msg: error.message });
+      console.error("Error in removeSubject:", error);
+      res.status(500).send({ 
+        msg: "Error removing subject", 
+        error: error.message,
+        details: "Please ensure the subject exists in the teacher's list"
+      });
+    }
+};
+  
+
+const getProfile = async (req, res) => {
+    try {
+      const teacherId = req.body.userId;
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+      const teacher = await TeacherModel.findById(teacherId)
+
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found" });
+
+      }
+      res.status(200).send({
+        msg: "Profile fetched successfully",
+        teacher: {
+          id: teacher._id,
+          name: teacher.name,
+          email: teacher.email,
+          phone: teacher.phone,
+          subjects: teacher.subjects,
+          availability: teacher.availability,
+          attachments: teacher.attachments
+        }
+      });
+    } catch (error) {   
+      console.error("Error in getProfile:", error);
+      res.status(500).send({
+        msg: "Error fetching profile",
+        error: error.message,
+        details: "Please ensure the teacher ID is valid and exists in the database"
+      });
     }
   };
-  
+
+
 const updateProfile = async (req, res) => {
     try {
-      const teacherId = req.userId;
+      const teacherId = req.body.userId;
       const updates = { ...req.body };
   
 
@@ -123,11 +274,12 @@ const updateProfile = async (req, res) => {
         updates.password = await bcrypt.hash(updates.password, 10);
       }
   
-      // ✅ Only update what’s sent, leave other fields untouched
+
       const updatedTeacher = await TeacherModel.findByIdAndUpdate(
         teacherId,
         { $set: updates },
-        { new: true }
+        { new: true },
+        "-password, -createdAt, -updatedAt"
       );
   
       res.status(200).send({ msg: "Profile updated", teacher: updatedTeacher });
@@ -140,15 +292,44 @@ const updateProfile = async (req, res) => {
 
 const getBookings = async (req, res) => {
     try {
-      const teacherId = req.userId;
-      const bookings = await BookingModel.find({ teacher: teacherId })
+      const teacherId = req.body.userId;
+      
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+
+      const teacher = await TeacherModel.findById(teacherId);
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found" });
+      }
+
+      const bookings = await BookingModel.find({ 
+        teacher: teacherId, 
+        status: "confirmed" 
+      }).populate("student", "name email");
   
-      res.status(200).send({ msg: "Bookings fetched successfully", bookings });
+      res.status(200).send({ 
+        msg: "Bookings fetched successfully", 
+        bookings: bookings.map(booking => ({
+          id: booking._id,
+          subject: booking.subject,
+          date: booking.date,
+          timeSlot: booking.timeSlot,
+          studentName: booking.student?.name || "Unknown",
+          studentEmail: booking.student?.email || "N/A",
+          status: booking.status
+        }))
+      });
     } catch (error) {
-      res.status(500).send({ msg: error.message });
+      console.error("Error in getBookings:", error);
+      res.status(500).send({ 
+        msg: "Error fetching bookings", 
+        error: error.message 
+      });
     }
-  };
+};
   
+
 const confirmBooking = async (req, res) => {
   try {
     const { bookingId } = req.params.bookingId;
@@ -160,7 +341,18 @@ const confirmBooking = async (req, res) => {
   }
 };
 
-// Cancel a booking
+const declineBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params.bookingId;
+    const declinedBooking = await BookingModel.findByIdAndDelete(bookingId);
+    if (!declinedBooking) return res.status(404).send({ msg: "Booking not found" });  
+    res.status(200).send({ msg: "Booking declined" });
+  } catch (error) {
+    res.status(500).send({ msg: error.message });
+  }
+};
+
+
 const cancelBooking = async (req, res) => {
   try {
     const { bookingId } = req.params.bookingId;
@@ -173,7 +365,6 @@ const cancelBooking = async (req, res) => {
   }
 };
 
-// Complete a booking+
 const completeBooking = async (req, res) => {
   try {
     const { bookingId } = req.params.bookingId;
@@ -185,75 +376,164 @@ const completeBooking = async (req, res) => {
   }
 };
 
-
-const addResource = async (req, res) => {
+const pendingBookings = async (req, res) => {
   try {
-    const teacherId = req.params.userId;
-    const { title, description, subject, link } = req.body;
+    const teacherId = req.body.userId;
+    const bookings = await BookingModel.find({ teacher: teacherId, status: "pending" })
+      .populate("student", "name email");
 
-    if (!title || !link) {
-      return res.status(400).send({ msg: "Title and link are required" });
+    if (!bookings.length) {
+      return res.status(404).send({ msg: "No pending bookings found" });
     }
 
-    const newResource = new ResourceModel({
-      title,
-      description,
-      subject,
-      link,
-      uploadedBy: teacherId
-    });
+    const formatted = bookings.map((booking) => ({
+      id: booking._id,
+      subject: booking.subject,
+      date: new Date(booking.date).toLocaleDateString(),
+      timeSlot: {
+        start: new Date(booking.timeSlot.start).toLocaleString(),
+        end: new Date(booking.timeSlot.end).toLocaleString()
+      },
+      studentName: booking.student?.name || "Unknown",
+      studentEmail: booking.student?.email || "N/A",
+      status: booking.status
+    }));
 
-    await newResource.save();
-    res.status(201).send({ msg: "Resource added successfully", resource: newResource });
+    res.status(200).send({ msg: "Pending bookings fetched successfully", bookings: formatted });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
+};
+
+
+const addResource = async (req, res) => {
+    try {
+      const teacherId = req.body.userId;
+      const { title, description, subject, link } = req.body;
+
+      // Validate required fields
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+      if (!title || !link) {
+        return res.status(400).send({ msg: "Title and link are required" });
+      }
+
+      // Verify teacher exists
+      const teacher = await TeacherModel.findById(teacherId);
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found" });
+      }
+
+      const newResource = new ResourceModel({
+        title,
+        description,
+        subject,
+        link,
+        uploadedBy: teacherId
+      });
+
+      await newResource.save();
+      console.log("Resource added:", newResource);
+
+      res.status(201).send({ 
+        msg: "Resource added successfully", 
+        resource: {
+          id: newResource._id,
+          title: newResource.title,
+          description: newResource.description,
+          subject: newResource.subject,
+          link: newResource.link,
+          uploadedBy: newResource.uploadedBy
+        }
+      });
+    } catch (error) {
+      console.error("Error in addResource:", error);
+      res.status(500).send({ msg: "Error adding resource", error: error.message });
+    }
 };
 
 const deleteResource = async (req, res) => {
-  try {
-    const teacherId = req.params.userId;
-    const resourceId = req.params.resourceId;
+    try {
+      const teacherId = req.body.userId;
+      const resourceId = req.params.resourceId;
 
-    const resource = await ResourceModel.findById(resourceId);
-    if (!resource) {
-      return res.status(404).send({ msg: "Resource not found" });
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+      if (!resourceId) {
+        return res.status(400).send({ msg: "Resource ID is required" });
+      }
+
+      const resource = await ResourceModel.findById(resourceId);
+      if (!resource) {
+        return res.status(404).send({ msg: "Resource not found" });
+      }
+
+      if (resource.uploadedBy.toString() !== teacherId) {
+        return res.status(403).send({ msg: "Not authorized to delete this resource" });
+      }
+
+      await ResourceModel.findByIdAndDelete(resourceId);
+      res.status(200).send({ msg: "Resource deleted successfully" });
+    } catch (error) {
+      console.error("Error in deleteResource:", error);
+      res.status(500).send({ msg: "Error deleting resource", error: error.message });
     }
-
-    if (resource.uploadedBy.toString() !== teacherId) {
-      return res.status(403).send({ msg: "Not authorized to delete this resource" });
-    }
-
-    await Resource.findByIdAndDelete(resourceId);
-    res.status(200).send({ msg: "Resource deleted successfully" });
-  } catch (error) {
-    res.status(500).send({ msg: error.message });
-  }
 };
 
 const getResources = async (req, res) => {
-  try {
-    const teacherId = req.params.userId;
-    const resources = await ResourceModel.find();
+    try {
+      const teacherId = req.body.userId;  // Changed from req.params.userId to req.body.userId
 
-    res.status(200).send({ msg: "Resources fetched successfully", resources });
-  } catch (error) {
-    res.status(500).send({ msg: error.message });
-  }
+      if (!teacherId) {
+        return res.status(400).send({ msg: "Teacher ID is required" });
+      }
+
+      // Verify teacher exists
+      const teacher = await TeacherModel.findById(teacherId);
+      if (!teacher) {
+        return res.status(404).send({ msg: "Teacher not found" });
+      }
+
+      const resources = await ResourceModel.find({ uploadedBy: teacherId });
+      
+      // Format the response
+      const formattedResources = resources.map(resource => ({
+        id: resource._id,
+        title: resource.title,
+        description: resource.description,
+        subject: resource.subject,
+        link: resource.link,
+        uploadedBy: resource.uploadedBy,
+        createdAt: resource.createdAt
+      }));
+
+      res.status(200).send({ 
+        msg: "Resources fetched successfully", 
+        count: formattedResources.length,
+        resources: formattedResources 
+      });
+    } catch (error) {
+      console.error("Error in getResources:", error);
+      res.status(500).send({ msg: "Error fetching resources", error: error.message });
+    }
 };
 
 module.exports = {
-    registerTeacher,
-    addAvailability,
-    removeAvailability,
-    addSubject,
-    removeSubject,
-    updateProfile,
-    getBookings,
-    confirmBooking,
-    cancelBooking,
-    completeBooking,
-    addResource,
-    deleteResource,
-    getResources
+  getProfile,
+  addAvailability,
+  removeAvailability,
+  addSubject,
+  removeSubject,
+  updateProfile,
+  getBookings,
+  confirmBooking,
+  declineBooking,
+  cancelBooking,
+  completeBooking,
+  pendingBookings,
+  addResource,
+  deleteResource,
+  getResources
 };

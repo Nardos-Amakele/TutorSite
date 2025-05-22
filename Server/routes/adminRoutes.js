@@ -1,5 +1,7 @@
 const express = require("express");
 const {
+  // registerAdmin,
+  getAdmins,
   getAllTeachers,
   getAllStudents,
   searchTeachers,
@@ -21,26 +23,29 @@ const { isAdmin } = require("../middlewares/roleMiddleware");
 
 const adminRouter = express.Router();
 
-adminRouter.use(adminAuth);
+adminRouter.use(auth);
+adminRouter.use(isAdmin);
 
-adminRouter.get("/teachers",auth, isAdmin, getAllTeachers);
-adminRouter.get("/teachers/search", auth, isAdmin, searchTeachers);
-adminRouter.patch("/teachers/:userId/verify", auth, isAdmin, verifyTeacher);
+// adminRouter.post("/register", registerAdmin);
+adminRouter.get("/admins", getAdmins); // checked!
+adminRouter.get("/teachers", getAllTeachers); // checked!
+adminRouter.get("/teachers/search",  searchTeachers); // checked!
+adminRouter.patch("/teachers/:userId/verify",  verifyTeacher); // checked!
 
-adminRouter.get("/students", auth, isAdmin, getAllStudents);
-adminRouter.get("/students/search", auth, isAdmin, searchStudents);
+adminRouter.get("/students",  getAllStudents); // checked!
+adminRouter.get("/students/search",  searchStudents); // checked!
 
-adminRouter.patch("/users/:role/:userId/ban", auth, isAdmin, banUserById);
-adminRouter.patch("/users/:role/:userId/unban", auth, isAdmin, unbanUserById);
+adminRouter.patch("/users/:role/:userId/ban",  banUserById); // checked!
+adminRouter.patch("/users/:role/:userId/unban",  unbanUserById); // checked!
 
-adminRouter.get("/resources", auth, isAdmin, getResources);
-adminRouter.delete("/resources/:userId", auth, isAdmin, removeResource);
+adminRouter.get("/resources",  getResources);
+adminRouter.delete("/resources/:userId",  removeResource);
 
-adminRouter.get("/bookings", auth, isAdmin, viewAllBookings);
-adminRouter.get("/bookings/filter", auth, isAdmin, filterBookings);
-adminRouter.patch("/bookings/:userId/cancel", auth, isAdmin, cancelBooking);
+adminRouter.get("/bookings",  viewAllBookings);
+adminRouter.get("/bookings/filter",  filterBookings);
+adminRouter.patch("/bookings/:userId/cancel",  cancelBooking);
 
-adminRouter.get("/stats", auth, isAdmin, getUserStats);
+adminRouter.get("/stats",  getUserStats);
 
 module.exports = { adminRouter };
 

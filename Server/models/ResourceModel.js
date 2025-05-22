@@ -16,4 +16,5 @@ const resourceSchema = new mongoose.Schema({
   
 
 
-module.exports = mongoose.model('Resource', resourceSchema);
+const ResourceModel= mongoose.model("Resource",resourceSchema)
+module.exports={ResourceModel}

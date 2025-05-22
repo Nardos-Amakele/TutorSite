@@ -1,9 +1,8 @@
 const express = require("express");
 const {
-  registerStudent,
-  searchTeachers,
   getStudentProfile,
   updateStudentProfile,
+  searchTeachers,
   bookTeacher,
   cancelBooking,
   completeBooking,
@@ -12,13 +11,13 @@ const {
   getResources,
   getAvailableSlots
 } = require("../controllers/studentController");
-const { auth } = require("../middlewares/auth.middleware");
-const { isStudent } = require("../middlewares/role.middleware");
+const { auth } = require("../middlewares/authMiddleware");
+const { isStudent } = require("../middlewares/roleMiddleware");
 
 const StudentRouter = express.Router();
 
 // Authentication routes
-StudentRouter.post("/register", registerStudent);
+// StudentRouter.post("/register", registerStudent);
 StudentRouter.get("/profile", auth, isStudent, getStudentProfile);
 StudentRouter.patch("/profile", auth, isStudent, updateStudentProfile);
 
@@ -28,6 +27,9 @@ StudentRouter.get("/teachers/search", auth, isStudent, searchTeachers);
 StudentRouter.get("/teachers/:userId/slots", auth, isStudent, getAvailableSlots);
 StudentRouter.post("/bookings", auth, isStudent, bookTeacher);
 StudentRouter.get("/bookings", auth, isStudent, getBookings);
+
+
+///////////////////////////////////////////////////////
 StudentRouter.patch("/bookings/:bookingId/cancel", auth, isStudent, cancelBooking);
 StudentRouter.patch("/bookings/:bookingId/complete", auth, isStudent, completeBooking);
 

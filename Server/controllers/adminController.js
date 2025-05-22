@@ -1,12 +1,23 @@
 const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
-const { BookingModel } = require("../models/Booking"); // assuming filename
-const { ResourceModel } = require("../models/Resource"); 
+const { BookingModel } = require("../models/BookingModel");
+const { ResourceModel } = require("../models/ResourceModel"); 
+const { AdminModel } = require("../models/AdminModel"); 
+const bcrypt = require("bcrypt");
 
+const getAdmins = async (req, res) => {
+  try { 
+    const admins = await TeacherModel.find({ role: "admin" }, '-__v');
+    if (!admins) return res.status(404).send({ msg: "No admins found" });
+    res.status(200).send({ admins });
+  } catch (error) {
+    res.status(500).send({ msg: error.message });
+  }
+};
 
 const getAllTeachers = async (req, res) => {
   try {
-    const teachers = await TeacherModel.find({}, "-password");
+    const teachers = await TeacherModel.find({}, "-password, -__v");
     res.status(200).send({ teachers });
   } catch (error) {
     res.status(500).send({ msg: error.message });
@@ -24,7 +35,7 @@ const searchTeachers = async (req, res) => {
       if (banned !== undefined) query.banned = banned === "true";
       if (verified !== undefined) query.verified = verified === "true";
 
-      const teachers = await TeacherModel.find(query).select("-password");
+      const teachers = await TeacherModel.find(query).select("-password -__v");
       res.status(200).send({ teachers });
     } catch (error) {
       res.status(500).send({ msg: error.message });
@@ -41,7 +52,7 @@ const searchTeachers = async (req, res) => {
       if (email) query.email = { $regex: email, $options: "i" };
       if (banned !== undefined) query.banned = banned === "true";
   
-      const students = await StudentModel.find(query).select("-password");
+      const students = await StudentModel.find(query).select("-password -__v");
       res.status(200).send({ students });
     } catch (error) {
       res.status(500).send({ msg: error.message });
@@ -50,7 +61,7 @@ const searchTeachers = async (req, res) => {
   
 const getAllStudents = async (req, res) => {
   try {
-    const students = await StudentModel.find({}, "-password");
+    const students = await StudentModel.find({}, "-password -__v");
     res.status(200).send({ students });
   } catch (error) {
     res.status(500).send({ msg: error.message });
@@ -62,7 +73,7 @@ const banUserById = async (req, res) => {
     const { userId, role } = req.params;
 
     let userModel = role === "teacher" ? TeacherModel : StudentModel;
-    const updatedUser = await userModel.findByIdAndUpdate(userId, { banned: true }, { new: true });
+    const updatedUser = await userModel.findByIdAndUpdate(userId, { banned: true }, { new: true }, );
 
     if (!updatedUser) return res.status(404).send({ msg: "User not found" });
     res.status(200).send({ msg: `${role} banned successfully`, user: updatedUser });
@@ -86,6 +97,7 @@ const unbanUserById = async (req, res) => {
       res.status(500).send({ msg: error.message });
     }
   };
+
   
 const verifyTeacher = async (req, res) => {
   try {
@@ -98,6 +110,7 @@ const verifyTeacher = async (req, res) => {
     res.status(500).send({ msg: error.message });
   }
 };
+
 
 const removeResource = async (req, res) => {
   try {
@@ -123,6 +136,8 @@ const cancelBooking = async (req, res) => {
     res.status(500).send({ msg: error.message });
   }
 };
+
+
 
 const getUserStats = async (req, res) => {
   try {
@@ -150,7 +165,7 @@ const getUserStats = async (req, res) => {
 
 const viewAllBookings = async (req, res) => {
     try {
-      const bookings = await BookingModel.find()
+      const bookings = await BookingModel.find({}, "-__v")
         .populate("teacher", "name email")
         .populate("student", "name email")
         .sort({ createdAt: -1 });
@@ -176,7 +191,7 @@ const viewAllBookings = async (req, res) => {
       }
       if (userId) query.teacher = userId;
   
-      const bookings = await BookingModel.find(query)
+      const bookings = await BookingModel.find({query, }, "-__v")
         .populate("teacher", "name email")
         .populate("student", "name email")
         .sort({ date: -1 });
@@ -190,6 +205,8 @@ const viewAllBookings = async (req, res) => {
 
   
 module.exports = {
+    // registerAdmin,
+    getAdmins,
     getAllTeachers,
     getAllStudents,
     searchTeachers,
