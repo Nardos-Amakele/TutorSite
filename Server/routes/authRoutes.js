@@ -10,12 +10,14 @@ const {
   handleGoogleCallback
 } = require("../controllers/authController");
 const { auth, checkBanStatus } = require("../middlewares/authMiddleware");
+const {checkRole} = require('../middlewares/upload');
 
 const { passport } = require("../config/google_Oauth");
 
 const AuthRouter = express.Router();
 
-AuthRouter.post("/register/:role", registerUser);  //checked!
+AuthRouter.post("/register/:role", checkRole , registerUser);  //checked!
+AuthRouter.post("/register/teacher", registerUser);  //checked!
 AuthRouter.post("/login", checkBanStatus, loginUser); // checked!
 
 AuthRouter.post("/logout", auth, logoutUser);

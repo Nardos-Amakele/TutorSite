@@ -5,12 +5,12 @@ const { client } = require("../services/redisClient");
 const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
 const { AdminModel } = require("../models/AdminModel");
-
+const { FileModel } = require('../models/FileModel')
 
 
 const registerUser = async (req, res) => {
   try {
-    const { email, password, name, attachments, availability, subjects, hourlyRate, } = req.body;
+    const { email, password, name, availability, subjects, hourlyRate } = req.body;
     const { role } = req.params;
 
     // Validate role
@@ -18,7 +18,7 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "Invalid role specified" });
     }
 
-    // Check if user already exists in any model
+    // Check if user already exists
     const existingStudent = await StudentModel.findOne({ email });
     const existingTeacher = await TeacherModel.findOne({ email });
     const existingAdmin = await AdminModel.findOne({ email });
@@ -27,73 +27,73 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "User already exists" });
     }
 
-    // Validate teacher attachments
-    if (role === "teacher" && (!attachments || attachments.length === 0)) {
-      return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+    // Save files if teacher
+    let attachmentIds = [];
+    if (role === "teacher") {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+      }
+
+      // Save each uploaded file into DB
+      const savedFiles = await Promise.all(
+        req.files.map(file => {
+          const newFile = new FileModel({
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            mimeType: file.mimetype,
+            size: file.size
+          });
+          return newFile.save();
+        })
+      );
+      attachmentIds = savedFiles.map(f => f._id);
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user based on role
+    // Create user
     let user;
     switch (role) {
       case "student":
-        user = new StudentModel({
-          email,
-          password: hashedPassword,
-          name,
-          role: "student"
-        });
+        user = new StudentModel({ email, password: hashedPassword, name, role });
         break;
       case "teacher":
         user = new TeacherModel({
           email,
           password: hashedPassword,
           name,
-          role: "teacher",
-          attachments, 
-          availability: availability || [], 
+          role,
+          attachments: attachmentIds,
+          availability: availability || [],
           subjects: subjects || [],
           hourlyRate: hourlyRate || 0
         });
         break;
       case "admin":
-        user = new AdminModel({
-          email,
-          password: hashedPassword,
-          name,
-          role: "admin"
-        });
+        user = new AdminModel({ email, password: hashedPassword, name, role });
         break;
     }
 
     await user.save();
 
-    // Generate tokens for new user
+    // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id, user.role, user.email);
 
-    // Set tokens in cookies
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict"
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict"
-    });
-
-    // Set Bearer token in Authorization header
+    // Set tokens
+    res.cookie("accessToken", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
     res.setHeader('Authorization', `Bearer ${accessToken}`);
 
     res.status(201).send({
       msg: `${role.charAt(0).toUpperCase() + role.slice(1)} registration successful`,
       user: { ...user._doc, password: undefined },
-      token: accessToken // Include token in response for client-side storage if needed
+      token: accessToken
     });
+
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).send({ msg: error.message });
   }
 };

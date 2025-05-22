@@ -1,9 +1,79 @@
 // File: controllers/teacherController.js
-const bcrypt = require("bcrypt");
+
 const { TeacherModel } = require("../models/TeacherModel");
 const { BookingModel } = require("../models/BookingModel");
-require("dotenv").config();
 const {ResourceModel} = require('../models/ResourceModel');
+const fs = require('fs');
+const path = require('path');
+
+const addAttachments = async (req, res) => {
+  try {
+    const teacherId = req.body.userId;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ msg: "No files uploaded" });
+    }
+
+    const savedFiles = await Promise.all(
+      req.files.map(file => {
+        const newFile = new FileModel({
+          filename: file.filename,
+          originalName: file.originalname,
+          path: file.path,
+          mimeType: file.mimetype,
+          size: file.size
+        });
+        return newFile.save();
+      })
+    );
+
+    const attachmentIds = savedFiles.map(file => file._id);
+
+    const updatedTeacher = await TeacherModel.findByIdAndUpdate(
+      teacherId,
+      { $push: { attachments: { $each: attachmentIds } } },
+      { new: true }
+    ).populate('attachments');
+
+    res.status(200).json({ msg: 'Attachments added successfully', teacher: updatedTeacher });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+
+const removeAttachment = async (req, res) => {
+  try {
+    const fileId  = req.params;
+    const teacherId = req.body.userId
+
+    // Remove file reference from teacher
+    const teacher = await TeacherModel.findByIdAndUpdate(
+      teacherId,
+      { $pull: { attachments: fileId } },
+      { new: true }
+    );
+
+    if (!teacher) {
+      return res.status(404).json({ msg: "Teacher not found" });
+    }
+
+    // Delete the file document from DB
+    const file = await FileModel.findByIdAndDelete(fileId);
+
+    if (file) {
+      // Delete file from disk
+      const filePath = path.resolve(file.path);
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Failed to delete file from disk:", err);
+      });
+    }
+
+    res.status(200).json({ msg: "Attachment removed successfully" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
 
 
 
@@ -663,6 +733,8 @@ module.exports = {
   getProfile,
   addAvailability,
   removeAvailability,
+  addAttachments,
+  removeAttachment,
   addSubject,
   removeSubject,
   updateProfile,
