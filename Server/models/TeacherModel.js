@@ -23,10 +23,12 @@ const TeacherSchema =mongoose.Schema({
       required: true,
       default: "teacher"
     },
-    attachments: {
-      type: [String],
-      required: true
+      attachments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'File',
     },
+  ],
     subjects: {type:[String], required:true},
     qualification: {type:String, required:true},
 

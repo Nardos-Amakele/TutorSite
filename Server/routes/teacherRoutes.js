@@ -3,6 +3,8 @@ const {
   getProfile,
   addAvailability,
   removeAvailability,
+  addAttachments,
+  removeAttachments,
   addSubject,
   removeSubject,
   updateProfile,
@@ -18,8 +20,8 @@ const {
 } = require("../controllers/teacherController");
 const { auth } = require("../middlewares/authMiddleware");
 const { isTeacher } = require("../middlewares/roleMiddleware");
+const {checkRole} = require('../middlewares/upload');
 
-const TeacherRouter = express.Router();
 
 // Profile management
 // TeacherRouter.post("/register", registerTeacher);  // No auth needed for registration
@@ -30,7 +32,9 @@ TeacherRouter.patch("/availability/add", auth, isTeacher, addAvailability); //ch
 
 TeacherRouter.patch("/availability/remove", auth, isTeacher, removeAvailability); //checked!!
 
-// Subject management
+TeacherRouter.patch("/attachments/add",auth, isTeacher, checkRole, addAttachments)
+TeacherRouter.patch("/attachments/remove/:fileId",auth, isTeacher, removeAttachment)
+
 TeacherRouter.patch("/subjects/add", auth, isTeacher, addSubject); //checked!!
 TeacherRouter.patch("/subjects/remove", auth, isTeacher, removeSubject); //checked!!
 

@@ -5,23 +5,32 @@ const { client } = require("../services/redisClient");
 const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
 const { AdminModel } = require("../models/AdminModel");
-
+const { FileModel } = require('../models/FileModel')
+const fs = require('fs');
 
 
 const registerUser = async (req, res) => {
   try {
-    const { email, password, name, attachments, availability, subjects, hourlyRate, qualification } = req.body;
+    const { email, password, name, availability, subjects, hourlyRate } = req.body;
     const { role } = req.params;
 
-    if(!password) return res.status(400).send({ msg: "Password is required" });
-    
-
-    // Validate role
-    if (!["student", "teacher", "admin"].includes(role)) {
-      return res.status(400).send({ msg: "Invalid role specified" });
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).send({ msg: "Email, password, and name are required" });
     }
 
-    // Check if user already exists in any model
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).send({ msg: "Invalid email format" });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).send({ msg: "Password must be at least 8 characters long" });
+    }
+
+    // Check if user already exists
     const existingStudent = await StudentModel.findOne({ email });
     const existingTeacher = await TeacherModel.findOne({ email });
     const existingAdmin = await AdminModel.findOne({ email });
@@ -30,74 +39,93 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "User already exists" });
     }
 
-    // Validate teacher attachments
-    if (role === "teacher" && (!attachments || attachments.length === 0)) {
-      return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+    // Save files if teacher
+    let attachmentIds = [];
+    if (role === "teacher") {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
+      }
+
+      try {
+        // Save each uploaded file into DB
+        const savedFiles = await Promise.all(
+          req.files.map(file => {
+            const newFile = new FileModel({
+              filename: file.filename,
+              originalName: file.originalname,
+              path: file.path,
+              mimeType: file.mimetype,
+              size: file.size
+            });
+            return newFile.save();
+          })
+        );
+        attachmentIds = savedFiles.map(f => f._id);
+      } catch (error) {
+        // Clean up uploaded files if database save fails
+        if (req.files) {
+          await Promise.all(req.files.map(file => 
+            fs.unlink(file.path).catch(console.error)
+          ));
+        }
+        throw new Error("Failed to save uploaded files");
+      }
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user based on role
+    // Create user
     let user;
     switch (role) {
       case "student":
-        user = new StudentModel({
-          email,
-          password: hashedPassword,
-          name,
-          role: "student"
-        });
+        user = new StudentModel({ email, password: hashedPassword, name, role });
         break;
       case "teacher":
         user = new TeacherModel({
           email,
           password: hashedPassword,
           name,
-          qualification,
-          role: "teacher",
-          attachments, 
-          availability: availability || [], 
+          role,
+          attachments: attachmentIds,
+          availability: availability || [],
           subjects: subjects || [],
           hourlyRate: hourlyRate || 0
         });
         break;
       case "admin":
-        user = new AdminModel({
-          email,
-          password: hashedPassword,
-          name,
-          role: "admin"
-        });
+        user = new AdminModel({ email, password: hashedPassword, name, role });
         break;
     }
 
     await user.save();
 
-    // Generate tokens for new user
+    // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id, user.role, user.email);
 
-    // Set tokens in cookies
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict"
+    // Set tokens
+    res.cookie("accessToken", accessToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict"
+    res.cookie("refreshToken", refreshToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict",
+      maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
     });
-
-    // Set Bearer token in Authorization header
     res.setHeader('Authorization', `Bearer ${accessToken}`);
 
     res.status(201).send({
       msg: `${role.charAt(0).toUpperCase() + role.slice(1)} registration successful`,
       user: { ...user._doc, password: undefined },
-      token: accessToken // Include token in response for client-side storage if needed
+      token: accessToken
     });
+
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).send({ msg: error.message });
   }
 };

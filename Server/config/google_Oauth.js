@@ -2,6 +2,7 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
 const passport = require("passport");
+const { google } = require("googleapis");
 
 passport.use(
   new GoogleStrategy(
@@ -26,4 +27,14 @@ passport.use(
   )
 );
 
-module.exports = { passport };
+const oAuth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI // not needed for server-to-server but can be dummy
+);
+
+oAuth2Client.setCredentials({
+  refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+});
+
+module.exports = { passport, oAuth2Client };

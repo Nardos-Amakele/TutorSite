@@ -6,6 +6,7 @@ const bookingSchema = new mongoose.Schema({
     teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', required: true },
     subject: { type: String, required: true },
     date: { type: Date, required: true },
+    meetingLink: {type: String},
     day: { type: String, required: true },
     timeSlot: {
         start: { type: String, required: true },
