@@ -98,3 +98,125 @@
         "__v": 0
     }
 }
+
+
+
+
+{
+    "students": [
+        {
+            "_id": "682e2b7541c3aca4fa7c5e80",
+            "name": "amare",
+            "email": "amare@gmail.com",
+            "banned": false,
+            "role": "student",
+            "createdAt": "2025-05-21T19:37:25.156Z",
+            "updatedAt": "2025-05-21T23:11:46.162Z"
+        }
+    ]
+}
+
+
+{
+    "teachers": [
+        {
+            "_id": "682e2debe0b57f6298683603",
+            "name": "allen title2",
+            "email": "allen@gmail.com",
+            "verified": true,
+            "password": "$2b$10$hQLac0C7/Vpix7aruux/a.iZQt3js60dsWwHQG0rMwqyuy4huzGfu",
+            "attachments": [
+                "cv.pdf"
+            ],
+            "subjects": [
+                "Math",
+                "Physics",
+                "English"
+            ],
+            "qualification": "MSc Mathematics",
+            "availability": [
+                {
+                    "day": "Thursday",
+                    "startTime": "14:00",
+                    "endTime": "15:30",
+                    "_id": "682e5021644aa9b14a084fb3"
+                },
+                {
+                    "day": "Sunday",
+                    "startTime": "14:00",
+                    "endTime": "15:30",
+                    "_id": "682e502a644aa9b14a084fba"
+                },
+                {
+                    "day": "Tuesday",
+                    "startTime": "14:00",
+                    "endTime": "15:30",
+                    "_id": "682e508cd524cbda72b71673"
+                }
+            ],
+            "banned": false,
+            "hourlyRate": 25,
+            "role": "teacher"
+        }
+    ]
+}
+
+
+{
+    "bookings": [
+        {
+            "timeSlot": {
+                "start": "14:00",
+                "end": "15:30"
+            },
+            "_id": "682e6051cc1dc816fa6abe32",
+            "student": "682e2b7541c3aca4fa7c5e80",
+            "teacher": "682e2debe0b57f6298683603",
+            "subject": "English",
+            "date": "2025-05-23T00:00:00.000Z",
+            "day": "Friday",
+            "status": "pending",
+            "createdAt": "2025-05-21T23:22:57.094Z",
+            "updatedAt": "2025-05-21T23:22:57.094Z"
+        }
+    ]
+}
+
+
+
+Physics
+
+
+
+{
+    "msg": "Teacher booked successfully",
+    "booking": {
+        "id": "682ec3ed338d8d8d591953ae",
+        "subject": "Physics",
+        "date": "2025-05-23T00:00:00.000Z",
+        "timeSlot": {
+            "start": "14:00",
+            "end": "15:30"
+        },
+        "status": "pending",
+        "teacherName": "Alice Doe",
+        "teacherEmail": "alice@example.com"
+    }
+}
+
+
+{
+    "msg": "Teacher booked successfully",
+    "booking": {
+        "id": "682ec40f338d8d8d591953be",
+        "subject": "Math",
+        "date": "2025-06-23T00:00:00.000Z",
+        "timeSlot": {
+            "start": "14:00",
+            "end": "15:30"
+        },
+        "status": "pending",
+        "teacherName": "Alice Doe",
+        "teacherEmail": "alice@example.com"
+    }
+}

@@ -166,8 +166,6 @@ const getUserStats = async (req, res) => {
 const viewAllBookings = async (req, res) => {
     try {
       const bookings = await BookingModel.find({}, "-__v")
-        .populate("teacher", "name email")
-        .populate("student", "name email")
         .sort({ createdAt: -1 });
   
       res.status(200).send({ bookings });

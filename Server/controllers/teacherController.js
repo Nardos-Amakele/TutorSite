@@ -62,7 +62,7 @@ const addAvailability = async (req, res) => {
         }
 
         // Add new availability slot
-        const newSlot = { day, startTime, endTime };
+        const newSlot = { day, date, startTime, endTime };
         
         // Use $addToSet to prevent duplicates
         const updatedTeacher = await TeacherModel.findByIdAndUpdate(
@@ -304,17 +304,21 @@ const getBookings = async (req, res) => {
       }
 
       const bookings = await BookingModel.find({ 
-        teacher: teacherId, 
-        status: "confirmed" 
-      }).populate("student", "name email");
+        teacher: teacherId,
+        status: "confirmed"
+      }).populate("student", "name email")
+        .sort({ date: 1 }); // Sort by date ascending
   
       res.status(200).send({ 
         msg: "Bookings fetched successfully", 
         bookings: bookings.map(booking => ({
           id: booking._id,
           subject: booking.subject,
-          date: booking.date,
-          timeSlot: booking.timeSlot,
+          date: booking.date.toISOString(),
+          timeSlot: {
+            start: booking.timeSlot.start,
+            end: booking.timeSlot.end
+          },
           studentName: booking.student?.name || "Unknown",
           studentEmail: booking.student?.email || "N/A",
           status: booking.status
@@ -332,10 +336,40 @@ const getBookings = async (req, res) => {
 
 const confirmBooking = async (req, res) => {
   try {
-    const { bookingId } = req.params.bookingId;
-    const confirmedBooking = await BookingModel.findByIdAndUpdate(bookingId, { status: "confirmed" });
-    if (!confirmedBooking) return res.status(404).send({ msg: "Booking not found" });
-    res.status(200).send({ msg: "Booking confirmed" });
+    const teacherId = req.body.userId;
+    const { bookingId } = req.params;
+
+    // Verify booking exists and belongs to teacher
+    const booking = await BookingModel.findOne({ 
+      _id: bookingId,
+      teacher: teacherId,
+      status: "pending" // Can only confirm pending bookings
+    });
+
+    if (!booking) {
+      return res.status(404).send({ 
+        msg: "Booking not found or not authorized to confirm" 
+      });
+    }
+
+    const confirmedBooking = await BookingModel.findByIdAndUpdate(
+      bookingId,
+      { status: "confirmed" },
+      { new: true }
+    ).populate("student", "name email");
+
+    res.status(200).send({ 
+      msg: "Booking confirmed",
+      booking: {
+        id: confirmedBooking._id,
+        subject: confirmedBooking.subject,
+        date: confirmedBooking.date.toISOString(),
+        timeSlot: confirmedBooking.timeSlot,
+        studentName: confirmedBooking.student?.name || "Unknown",
+        studentEmail: confirmedBooking.student?.email || "N/A",
+        status: confirmedBooking.status
+      }
+    });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
@@ -343,10 +377,35 @@ const confirmBooking = async (req, res) => {
 
 const declineBooking = async (req, res) => {
   try {
-    const { bookingId } = req.params.bookingId;
-    const declinedBooking = await BookingModel.findByIdAndDelete(bookingId);
-    if (!declinedBooking) return res.status(404).send({ msg: "Booking not found" });  
-    res.status(200).send({ msg: "Booking declined" });
+    const teacherId = req.body.userId;
+    const { bookingId } = req.params;
+
+    // Verify booking exists and belongs to teacher
+    const booking = await BookingModel.findOne({ 
+      _id: bookingId,
+      teacher: teacherId,
+      status: "pending" // Can only decline pending bookings
+    });
+
+    if (!booking) {
+      return res.status(404).send({ 
+        msg: "Booking not found or not authorized to decline" 
+      });
+    }
+
+    // Delete the booking instead of updating status
+    const deletedBooking = await BookingModel.findByIdAndDelete(bookingId);
+
+    res.status(200).send({ 
+      msg: "Booking declined and removed",
+      booking: {
+        id: deletedBooking._id,
+        subject: deletedBooking.subject,
+        date: deletedBooking.date.toISOString(),
+        timeSlot: deletedBooking.timeSlot,
+        status: "declined"
+      }
+    });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
@@ -355,11 +414,40 @@ const declineBooking = async (req, res) => {
 
 const cancelBooking = async (req, res) => {
   try {
-    const { bookingId } = req.params.bookingId;
-    const cancelledBooking = await BookingModel.findByIdAndUpdate(bookingId, { status: "cancelled" });
-    if (!cancelledBooking) return res.status(404).send({ msg: "Booking not found" });
+    const teacherId = req.body.userId;
+    const { bookingId } = req.params;
 
-    res.status(200).send({ msg: "Booking cancelled" });
+    // Verify booking exists and belongs to teacher
+    const booking = await BookingModel.findOne({ 
+      _id: bookingId,
+      teacher: teacherId,
+      status: "confirmed"
+    });
+
+    if (!booking) {
+      return res.status(404).send({ 
+        msg: "Booking not found or not authorized to cancel" 
+      });
+    }
+
+    const cancelledBooking = await BookingModel.findByIdAndUpdate(
+      bookingId,
+      { status: "cancelled" },
+      { new: true }
+    ).populate("student", "name email");
+
+    res.status(200).send({ 
+      msg: "Booking cancelled",
+      booking: {
+        id: cancelledBooking._id,
+        subject: cancelledBooking.subject,
+        date: cancelledBooking.date.toISOString(),
+        timeSlot: cancelledBooking.timeSlot,
+        studentName: cancelledBooking.student?.name || "Unknown",
+        studentEmail: cancelledBooking.student?.email || "N/A",
+        status: cancelledBooking.status
+      }
+    });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
@@ -367,20 +455,67 @@ const cancelBooking = async (req, res) => {
 
 const completeBooking = async (req, res) => {
   try {
-    const { bookingId } = req.params.bookingId;
-    const Completedbooking = await BookingModel.findByIdAndUpdate(bookingId, { status: "completed" });
-    if (!Completedbooking) return res.status(404).send({ msg: "Booking not found" });
-    res.status(200).send({ msg: "Booking marked as completed" });
+    const teacherId = req.body.userId;
+    const { bookingId } = req.params;
+
+    // Verify booking exists and belongs to teacher
+    const booking = await BookingModel.findOne({ 
+      _id: bookingId,
+      teacher: teacherId,
+      status: "confirmed" // Can only complete confirmed bookings
+    });
+
+    if (!booking) {
+      return res.status(404).send({ 
+        msg: "Booking not found or not authorized to complete" 
+      });
+    }
+
+    const completedBooking = await BookingModel.findByIdAndUpdate(
+      bookingId,
+      { status: "completed" },
+      { new: true }
+    ).populate("student", "name email");
+
+    res.status(200).send({ 
+      msg: "Booking marked as completed",
+      booking: {
+        id: completedBooking._id,
+        subject: completedBooking.subject,
+        date: completedBooking.date.toISOString(),
+        timeSlot: completedBooking.timeSlot,
+        studentName: completedBooking.student?.name || "Unknown",
+        studentEmail: completedBooking.student?.email || "N/A",
+        status: completedBooking.status
+      }
+      
+    });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
 };
 
+
 const pendingBookings = async (req, res) => {
   try {
     const teacherId = req.body.userId;
-    const bookings = await BookingModel.find({ teacher: teacherId, status: "pending" })
-      .populate("student", "name email");
+    
+    if (!teacherId) {
+      return res.status(400).send({ msg: "Teacher ID is required" });
+    }
+
+    const teacher = await TeacherModel.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).send({ msg: "Teacher not found" });
+    }
+
+    const bookings = await BookingModel.find({ 
+      teacher: teacherId, 
+      status: "pending" 
+    })
+    .populate("student", "name email")
+    .sort({ date: 1 }); // Sort by date ascending
+
 
     if (!bookings.length) {
       return res.status(404).send({ msg: "No pending bookings found" });
@@ -389,18 +524,22 @@ const pendingBookings = async (req, res) => {
     const formatted = bookings.map((booking) => ({
       id: booking._id,
       subject: booking.subject,
-      date: new Date(booking.date).toLocaleDateString(),
+      date: booking.date.toISOString(), // Consistent date format
       timeSlot: {
-        start: new Date(booking.timeSlot.start).toLocaleString(),
-        end: new Date(booking.timeSlot.end).toLocaleString()
+        start: booking.timeSlot.start,
+        end: booking.timeSlot.end
       },
       studentName: booking.student?.name || "Unknown",
       studentEmail: booking.student?.email || "N/A",
       status: booking.status
     }));
 
-    res.status(200).send({ msg: "Pending bookings fetched successfully", bookings: formatted });
+    res.status(200).send({ 
+      msg: "Pending bookings fetched successfully", 
+      bookings: formatted 
+    });
   } catch (error) {
+    console.error("Error in pendingBookings:", error);
     res.status(500).send({ msg: error.message });
   }
 };

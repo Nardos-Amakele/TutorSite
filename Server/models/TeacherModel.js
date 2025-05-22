@@ -31,7 +31,7 @@ const TeacherSchema =mongoose.Schema({
     qualification: {type:String, required:true},
 
     availability: [ 
-      {
+      { date: String,
         day: String,
         startTime: String,
         endTime: String

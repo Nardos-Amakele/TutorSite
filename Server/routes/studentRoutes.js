@@ -22,10 +22,13 @@ StudentRouter.get("/profile", auth, isStudent, getStudentProfile);
 StudentRouter.patch("/profile", auth, isStudent, updateStudentProfile);
 
 // Teacher search and booking routes
-StudentRouter.get("/teachers", auth, isStudent, getTeachers);
-StudentRouter.get("/teachers/search", auth, isStudent, searchTeachers);
-StudentRouter.get("/teachers/:userId/slots", auth, isStudent, getAvailableSlots);
-StudentRouter.post("/bookings", auth, isStudent, bookTeacher);
+StudentRouter.get("/teachers", auth, isStudent, getTeachers); //checked!!
+StudentRouter.get("/teachers/search", auth, isStudent, searchTeachers); //checked!!
+
+StudentRouter.get("/teachers/:userId/slots", auth, isStudent, getAvailableSlots); //checked!
+// !
+StudentRouter.post("/bookings", auth, isStudent, bookTeacher); //checked!!
+
 StudentRouter.get("/bookings", auth, isStudent, getBookings);
 
 
@@ -33,7 +36,6 @@ StudentRouter.get("/bookings", auth, isStudent, getBookings);
 StudentRouter.patch("/bookings/:bookingId/cancel", auth, isStudent, cancelBooking);
 StudentRouter.patch("/bookings/:bookingId/complete", auth, isStudent, completeBooking);
 
-// Resource routes
-StudentRouter.get("/resources", auth, isStudent, getResources);
+StudentRouter.get("/resources", auth, isStudent, getResources); //checked!!
 
 module.exports = { StudentRouter };

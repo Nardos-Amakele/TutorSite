@@ -79,7 +79,6 @@ const auth = async (req, res, next) => {
       role: payload.role,
     };
 
-    console.log('User authenticated:', req.user);
     next();
   } catch (error) {
     return res.status(500).json({

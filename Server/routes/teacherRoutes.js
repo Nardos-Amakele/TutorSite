@@ -12,7 +12,9 @@ const {
   completeBooking,
   addResource,
   deleteResource,
-  getResources
+  getResources,
+  pendingBookings,
+  declineBooking
 } = require("../controllers/teacherController");
 const { auth } = require("../middlewares/authMiddleware");
 const { isTeacher } = require("../middlewares/roleMiddleware");
@@ -34,11 +36,13 @@ TeacherRouter.patch("/subjects/remove", auth, isTeacher, removeSubject); //check
 
 // Booking management
 TeacherRouter.get("/bookings", auth, isTeacher, getBookings); //checked!!
+TeacherRouter.get("/bookings/pending", auth, isTeacher, pendingBookings); //checked!!
 
 
 TeacherRouter.patch("/bookings/:bookingId/confirm", auth, isTeacher, confirmBooking);
 TeacherRouter.patch("/bookings/:bookingId/cancel", auth, isTeacher, cancelBooking);
 TeacherRouter.patch("/bookings/:bookingId/complete", auth, isTeacher, completeBooking);
+TeacherRouter.delete("/bookings/:bookingId/decline", auth, isTeacher, declineBooking); //checked!!
 
 
 // Resource management
