@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -20,30 +19,118 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
-  const [selectedSubjects, setSelectedSubjects] = useState([]); // Removed type annotation
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'error'
+  });
 
-  const handleClickOpen = () => {
+  // Fetch all teachers on component mount
+  useEffect(() => {
+    fetchTeachers();
+  }, []);
+
+  // Fetch teachers with search query
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery) {
+        searchTeachers();
+      } else {
+        fetchTeachers();
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const fetchTeachers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch("http://localhost:5000/student/teachers", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setTeachers(data.teachers);
+        setError(null);
+      } else {
+        setError(data.msg || 'Failed to fetch teachers');
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch teachers',
+          severity: 'error'
+        });
+      }
+    } catch (err) {
+      setError('Error fetching teachers');
+      setSnackbar({
+        open: true,
+        message: 'Error fetching teachers',
+        severity: 'error'
+      });
+    }
+  };
+
+  const searchTeachers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/student/teachers/search?name=${searchQuery}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setTeachers(data.teachers);
+        setError(null);
+      } else {
+        setError(data.msg || 'Failed to search teachers');
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to search teachers',
+          severity: 'error'
+        });
+      }
+    } catch (err) {
+      setError('Error searching teachers');
+      setSnackbar({
+        open: true,
+        message: 'Error searching teachers',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleClickOpen = (teacher) => {
+    setSelectedTeacher(teacher);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
-  };
-
-  // Hardcoded teacher data
-  const teacherData = {
-    name: "John Doe",
-    qualification: "PhD in Mathematics",
-    hourlyRate: 50,
-    email: "john.doe@example.com",
-    availability: "Available",
-    subjects: ["Math", "Physics", "Chemistry"],
   };
 
   const handleSubjectChange = (subject) => {
@@ -52,50 +139,99 @@ const Teachers = () => {
     );
   };
 
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
   return (
-    <>
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ mb: 4 }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search teachers by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 2 }}
+        />
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Grid container spacing={3}>
+  {teachers.map((teacher) => (
+    <Grid item xs={12} md={6} key={teacher._id}>
       <Card sx={{
-        maxWidth: 345,
         borderRadius: 3,
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         transition: 'transform 0.3s, box-shadow 0.3s',
         '&:hover': {
           transform: 'translateY(-5px)',
           boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
-        }
+        },
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-              {teacherData.name.charAt(0)}
+        <CardContent sx={{
+          p: 3,
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'primary.main', 
+                mr: 2,
+                width: 56, 
+                height: 56,
+                fontSize: '1.5rem'
+              }}
+            >
+              {teacher.name.charAt(0)}
             </Avatar>
             <Box>
               <Typography variant="h6" component="div" fontWeight="bold">
-                {teacherData.name}
+                {teacher.name}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {teacherData.qualification}
+                {teacher.qualification || 'Qualified Teacher'}
               </Typography>
             </Box>
           </Box>
 
           <Divider sx={{ my: 2 }} />
 
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            <strong>Email:</strong> {teacherData.email}
-          </Typography>
-
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Availability:</strong> {teacherData.availability}
+            <strong>Email:</strong> {teacher.email}
           </Typography>
 
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Subjects:</strong>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Subjects:
             </Typography>
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-              {teacherData.subjects.map((subject, index) => (
-                <Chip key={index} label={subject} size="small" color="primary" variant="outlined" />
+              {teacher.subjects?.map((subject, index) => (
+                <Chip 
+                  key={index} 
+                  label={subject} 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined" 
+                  sx={{ fontWeight: 'medium' }}
+                />
               ))}
             </Stack>
           </Box>
@@ -104,26 +240,29 @@ const Teachers = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            mt: 3,
+            mt: 'auto',
+            pt: 2
           }}>
             <Chip
-              label={`$${teacherData.hourlyRate}/hr`}
+              label={`$${teacher.hourlyRate || 0}/hr`}
               color="success"
               variant="filled"
               sx={{
                 fontWeight: 'bold',
-                fontSize: '1rem',
-                px: 1,
+                fontSize: '0.9rem',
+                px: 1.5,
+                py: 1
               }}
             />
             <Button
-              onClick={handleClickOpen}
+              onClick={() => handleClickOpen(teacher)}
               variant="contained"
-              size="small"
+              size="medium"
               sx={{
                 borderRadius: 2,
                 textTransform: 'none',
                 fontWeight: 'bold',
+                px: 3
               }}
             >
               Book Session
@@ -131,6 +270,9 @@ const Teachers = () => {
           </Box>
         </CardContent>
       </Card>
+    </Grid>
+  ))}
+</Grid>
 
       <Dialog
         open={open}
@@ -148,7 +290,7 @@ const Teachers = () => {
           color: 'white',
           fontWeight: 'bold',
         }}>
-          Book a Session with {teacherData.name}
+          Book a Session with {selectedTeacher?.name}
         </DialogTitle>
         <DialogContent sx={{ py: 3 }}>
           <Box component="form" sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -192,7 +334,7 @@ const Teachers = () => {
                   Select Subjects
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  {teacherData.subjects.map((subject, index) => (
+                  {selectedTeacher?.subjects?.map((subject, index) => (
                     <FormControlLabel
                       key={index}
                       control={
@@ -219,7 +361,22 @@ const Teachers = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

@@ -26,7 +26,7 @@ StudentRouter.get("/teachers", auth, isStudent, getTeachers); //checked!!
 StudentRouter.get("/teachers/search", auth, isStudent, searchTeachers); //checked!!
 
 StudentRouter.get("/teachers/:userId/slots", auth, isStudent, getAvailableSlots); //checked!
-// !
+
 StudentRouter.post("/bookings", auth, isStudent, bookTeacher); //checked!!
 
 StudentRouter.get("/bookings", auth, isStudent, getBookings);

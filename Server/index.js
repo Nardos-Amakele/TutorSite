@@ -22,28 +22,26 @@ const { errorHandler } = require("./middlewares/errorMiddleware");
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS configuration
-// app.use(cors({
-//   origin: process.env.CLIENT_URL || "http://localhost:3000",
-//   credentials: true, // Allow cookies to be sent with requests
-//   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-//   allowedHeaders: ['Content-Type', 'Authorization']
-// }));
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  credentials: true, // Allow cookies to be sent with requests
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// Session configuration
-// app.use(
-//   expressSession({
-//     secret: process.env.SESSION_SECRET,
-//     resave: false,
-//     saveUninitialized: true,
-//     cookie: {
-//       secure: process.env.NODE_ENV === 'production', 
-//       httpOnly: true,
-//       sameSite: 'strict',
-//       maxAge: 24 * 60 * 60 * 1000, 
-//     },
-//   })
-// );
+app.use(
+  expressSession({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production', 
+      httpOnly: true,
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, 
+    },
+  })
+);
 
 // API Routes
 app.use("/auth", AuthRouter);  // Authentication routes

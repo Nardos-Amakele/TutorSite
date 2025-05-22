@@ -17,70 +17,212 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button // Added Button for dialog actions
+  Button,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import AddIcon from '@mui/icons-material/Add'; // Import for the Add button
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-// Extended hardcoded data
-const resourcesData = [
-  {
-    id: 1,
-    title: 'React Documentation',
-    url: 'https://reactjs.org/docs/getting-started.html',
-    description: 'Official React documentation with guides and API references',
-    subject: 'Frontend',
-    uploadedBy: 'Alice'
-  },
-   {
-    id: 2,
-    title: 'TypeScript Handbook',
-    url: 'https://www.typescriptlang.org/docs/handbook/intro.html',
-    description: 'Complete guide to TypeScript features',
-    subject: 'Programming',
-    uploadedBy: 'Bob'
-  },
-  {
-    id: 3,
-    title: 'Material-UI Components',
-    url: 'https://mui.com/material-ui/getting-started/',
-    description: 'Collection of ready-to-use React components',
-    subject: 'UI Library',
-    uploadedBy: 'Alice'
-  },
-  {
-    id: 4,
-    title: 'CSS Tricks',
-    url: 'https://css-tricks.com/',
-    description: 'Daily articles about CSS, HTML, JavaScript, and all things web development',
-    subject: 'Web Design',
-    uploadedBy: 'Charlie'
-  },
-  {
-    id: 5,
-    title: 'MDN Web Docs',
-    url: 'https://developer.mozilla.org/en-US/',
-    description: 'Resources for developers, by developers',
-    subject: 'Web Development',
-    uploadedBy: 'Bob'
-  }
-];
+interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  link: string;
+  uploadedBy: string;
+  createdAt: string;
+}
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [resources, setResources] = React.useState(resourcesData);
+  const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
   const [selectedUploader, setSelectedUploader] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-  const [openDialog, setOpenDialog] = React.useState(false); // State for dialog visibility
+  const [loading, setLoading] = React.useState(true);
+  const [openDialog, setOpenDialog] = React.useState(false);
   const [newResource, setNewResource] = React.useState({
     title: '',
-    url: '',
+    link: '',
     description: '',
-    uploadedBy: 'Tutor Name' // Hardcoded uploader name
+    subject: ''
   });
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+  const [currentTeacherId, setCurrentTeacherId] = React.useState<string>('');
+
+  // Fetch resources
+  const fetchResources = async () => {
+    try {
+      setLoading(true);
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:5000/teacher/resources", {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResources(data.resources || []);
+        // Set the current teacher's ID from the response
+        if (data.resources && data.resources.length > 0) {
+          setCurrentTeacherId(data.resources[0].uploadedBy);
+        }
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch resources',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error fetching resources',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add resource
+  const handleAddResource = async () => {
+    try {
+      if (!newResource.title || !newResource.link) {
+        setSnackbar({
+          open: true,
+          message: 'Title and link are required',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:5000/teacher/resources/add", {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include',
+        body: JSON.stringify(newResource)
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: 'Resource added successfully',
+          severity: 'success'
+        });
+        setNewResource({ title: '', link: '', description: '', subject: '' });
+        setOpenDialog(false);
+        fetchResources();
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to add resource',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error adding resource',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Delete resource
+  const handleDeleteResource = async (resourceId: string) => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch(`http://localhost:5000/teacher/resources/${resourceId}`, {
+        method: 'DELETE',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: 'Resource deleted successfully',
+          severity: 'success'
+        });
+        fetchResources();
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to delete resource',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error deleting resource',
+        severity: 'error'
+      });
+    }
+  };
 
   // Derive unique subjects and uploaders for filter dropdowns
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
@@ -98,16 +240,10 @@ const Resources = () => {
     return searchMatch && subjectMatch && uploaderMatch;
   });
 
-  const handleAddResource = () => {
-    if (newResource.title && newResource.url) {
-      setResources([...resources, {
-          id: resources.length + 1, ...newResource,
-          subject: ''
-      }]);
-      setNewResource({ title: '', url: '', description: '', uploadedBy: 'Tutor Name' }); // Reset form
-      setOpenDialog(false); // Close dialog
-    }
-  };
+  // Fetch resources on component mount
+  React.useEffect(() => {
+    fetchResources();
+  }, []);
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
@@ -121,7 +257,7 @@ const Resources = () => {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setOpenDialog(true)} // Open dialog
+          onClick={() => setOpenDialog(true)}
         >
           Add Resource
         </Button>
@@ -141,10 +277,10 @@ const Resources = () => {
           />
           <TextField
             margin="dense"
-            label="URL"
+            label="Link"
             fullWidth
-            value={newResource.url}
-            onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
+            value={newResource.link}
+            onChange={(e) => setNewResource({ ...newResource, link: e.target.value })}
           />
           <TextField
             margin="dense"
@@ -152,6 +288,13 @@ const Resources = () => {
             fullWidth
             value={newResource.description}
             onChange={(e) => setNewResource({ ...newResource, description: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Subject"
+            fullWidth
+            value={newResource.subject}
+            onChange={(e) => setNewResource({ ...newResource, subject: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
@@ -226,37 +369,47 @@ const Resources = () => {
                 }
               }}
             >
-              <CardActionArea
-                component="a"
-                href={resource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ p: 2 }}
-              >
-                <CardContent sx={{ p: 0 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      mb: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      color: 'text.primary'
-                    }}
+              <CardContent sx={{ p: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <CardActionArea
+                    component="a"
+                    href={resource.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ flex: 1 }}
                   >
-                    {resource.title}
-                    <OpenInNewIcon fontSize="small" color="action" />
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    {resource.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                    <Chip label={resource.subject} size="small" color="primary" variant="outlined" />
-                    <Chip label={`Uploaded by: ${resource.uploadedBy}`} size="small" variant="outlined" />
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        mb: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        color: 'text.primary'
+                      }}
+                    >
+                      {resource.title}
+                      <OpenInNewIcon fontSize="small" color="action" />
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                      {resource.description}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                      <Chip label={resource.subject} size="small" color="primary" variant="outlined" />
+                      <Chip label={`Uploaded by: ${resource.uploadedBy}`} size="small" variant="outlined" />
+                    </Stack>
+                  </CardActionArea>
+                  {resource.uploadedBy === currentTeacherId && (
+                    <IconButton
+                      onClick={() => handleDeleteResource(resource.id)}
+                      sx={{ ml: 1 }}
+                    >
+                      <DeleteIcon color="error" />
+                    </IconButton>
+                  )}
+                </Stack>
+              </CardContent>
             </Card>
           ))
         ) : (
@@ -265,6 +418,21 @@ const Resources = () => {
           </Typography>
         )}
       </Stack>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

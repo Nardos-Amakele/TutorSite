@@ -5,13 +5,12 @@ const { client } = require("../services/redisClient");
 const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
 const { AdminModel } = require("../models/AdminModel");
-const jwt = require("jsonwebtoken");
 
 
 
 const registerUser = async (req, res) => {
   try {
-    const { email, password, name, attachments, availability, subjects, hourlyRate, qualification } = req.body;
+    const { email, password, name, attachments, availability, subjects, hourlyRate, } = req.body;
     const { role } = req.params;
 
     // Validate role
@@ -52,7 +51,6 @@ const registerUser = async (req, res) => {
           email,
           password: hashedPassword,
           name,
-          qualification,
           role: "teacher",
           attachments, 
           availability: availability || [], 

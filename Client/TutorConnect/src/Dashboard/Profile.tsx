@@ -8,7 +8,9 @@ import {
   Divider,
   Container,
   Paper,
-  Avatar
+  Avatar,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
@@ -27,17 +29,54 @@ const Profile: React.FC = () => {
   const [editedData, setEditedData] = useState({
     name: name || '',
     email: email || '',
-    password: '' // Password will be handled separately for security
+    password: ''
+  });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
   });
 
-  // Fetch user data when component mounts
+  // Fetch user profile when component mounts
   useEffect(() => {
-    setEditedData({
-      name: name || '',
-      email: email || '',
-      password: ''
-    });
-  }, [name, email]);
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch("http://localhost:5000/student/profile", {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setEditedData({
+          name: data.student.name || '',
+          email: data.student.email || '',
+          password: ''
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch profile',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setSnackbar({
+        open: true,
+        message: 'Error fetching profile',
+        severity: 'error'
+      });
+    }
+  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -45,6 +84,7 @@ const Profile: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      const token = localStorage.getItem('token');
       const dataToSend: any = {
         name: editedData.name,
         email: editedData.email
@@ -54,40 +94,46 @@ const Profile: React.FC = () => {
         dataToSend.password = editedData.password;
       }
 
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('JAA_access_token='))
-        ?.split('=')[1];
-
-      const response = await fetch("https://ruby-fragile-angelfish.cyclic.app/student/update", {
+      const response = await fetch("http://localhost:5000/student/profile", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
-          authorization: token || ''
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(dataToSend)
       });
 
       const result = await response.json();
       
-      if (result.msg === "Update successful") {
+      if (response.ok) {
         setIsEditing(false);
-        // Optionally show a success message
+        setSnackbar({
+          open: true,
+          message: 'Profile updated successfully',
+          severity: 'success'
+        });
+        // Refresh profile data
+        fetchProfile();
       } else {
-        console.error(result.msg);
+        setSnackbar({
+          open: true,
+          message: result.msg || 'Failed to update profile',
+          severity: 'error'
+        });
       }
     } catch (error) {
       console.error("Error updating profile:", error);
+      setSnackbar({
+        open: true,
+        message: 'Error updating profile',
+        severity: 'error'
+      });
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
-    setEditedData({
-      name: name || '',
-      email: email || '',
-      password: ''
-    });
+    fetchProfile(); // Reset to original data
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,6 +142,10 @@ const Profile: React.FC = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   const ProfilePaper = styled(Paper)(({ theme }) => ({
@@ -159,7 +209,7 @@ const Profile: React.FC = () => {
                 fontSize: '2rem'
               }}
             >
-              {name ? name.charAt(0).toUpperCase() : ''}
+              {editedData.name ? editedData.name.charAt(0).toUpperCase() : ''}
             </Avatar>
             <Typography variant="h6" sx={{ color: 'text.secondary' }}>
               User ID: {id}
@@ -212,6 +262,21 @@ const Profile: React.FC = () => {
           )}
         </Box>
       </ProfilePaper>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

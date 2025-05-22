@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useContext } from "react";
 import { UserContext } from "../UserContext";
 import SigninImg from "./images/signin-image.jpg";
@@ -14,9 +15,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import GoogleButton from 'react-google-button';
-import { Link as LinkR } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link as LinkR, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -34,7 +33,7 @@ function Copyright(props) {
 const defaultTheme = createTheme({
   palette: {
     primary: {
-      main: '#4CAF50', // Changed to green
+      main: '#4CAF50',
     },
     secondary: {
       main: '#f50057',
@@ -43,68 +42,78 @@ const defaultTheme = createTheme({
 });
 
 const Login = () => {
-  const { setName, setId, setEmail, setIsVarified } = useContext(UserContext);
+  const { setName, setId, setEmail, setIsVarified, setRole } = useContext(UserContext);
   const navigate = useNavigate();
   const MySwal = withReactContent(Swal);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const userDetails = {
-      email: data.get('email'),
-      password: data.get('password'),
-    };
+ const handleSubmit = async (event) => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const userDetails = {
+    email: data.get('email'),
+    password: data.get('password'),
+  };
 
-    await fetch(`https://ruby-fragile-angelfish.cyclic.app/student/login`, {
+  try {
+    const response = await fetch("http://localhost:5000/auth/login", {
       method: 'POST',
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(userDetails)
-    })
-      .then(res => res.json())
-      .then(res => {
-        if (res.msg === "Login success") {
-          // Set cookies and context values
-          setName(res.user.name);
-          setId(res.user._id);
-          setEmail(res.user.email);
-          setIsVarified(res.user.isVerified);
+      body: JSON.stringify(userDetails),
+      credentials: 'include' // Ensure credentials are included
+    });
 
-          MySwal.fire({
-            title: res.msg,
-            position: 'center',
-            showConfirmButton: false,
-            timer: 1500,
-            didOpen: () => {
-              MySwal.showLoading();
-            },
-          }).then(() => {
-            return MySwal.fire({
-              title: <p>Redirecting to dashboard...</p>
-            });
-          });
+    const res = await response.json();
+    console.log("Backend Response:", res); // Debug log
 
-          setTimeout(() => {
-            navigate("/dashboard");
-          }, 1500);
-        } else {
-          MySwal.fire({
-            title: res.msg,
-            position: 'center',
-            showConfirmButton: false,
-            timer: 1500,
-            icon: 'error',
-            didOpen: () => {
-              MySwal.showLoading();
-            },
-          });
-        }
-      })
-      .catch((err) => {
-        console.log(err);
+    if (response.ok && res.msg === "Login successful" && res.token && res.user) {
+      // Store token in cookies
+      document.cookie = `JAA_access_token=${res.token}; path=/; secure; samesite=strict`;
+
+      // Update user context
+      setName(res.user.name);
+      setId(res.user._id);
+      setEmail(res.user.email);
+      setRole(res.user.role);
+      setIsVarified(true);
+
+      // SweetAlert for success
+      await MySwal.fire({
+        title: res.msg,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'center',
       });
-  };
+
+      // Navigate based on role
+      switch (res.user.role) {
+        case 'student':
+          navigate("/dashboard");
+          break;
+        case 'admin':
+        case 'teacher':
+          navigate("/teacherdashboard");
+          break;
+        default:
+          navigate("/admin");
+          break;
+      }
+    } else {
+      throw new Error(res.msg || "Login failed");
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    MySwal.fire({
+      title: "Login Failed",
+      text: err.message || "Please check your credentials and try again.",
+      icon: 'error',
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  }
+};
 
   const CustomBox = styled(Box)(({ theme }) => ({
     width: '60%',
@@ -149,7 +158,7 @@ const Login = () => {
               }}
             >
               <LinkR to='/'>
-                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} /> {/* Smaller logo */}
+                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} />
               </LinkR>
               <Typography component="h1" variant="h5" sx={{ fontWeight: 600 }}>
                 Log in
@@ -187,20 +196,6 @@ const Login = () => {
                 >
                   Log In
                 </Button>
-
-                {/* <GoogleButton
-                  label="Sign in"
-                  type='dark'
-                  style={{
-                    display: 'block',
-                    margin: '0.1rem auto',
-                    width: '35%',
-                    color: 'gray',
-                    fontSize: '90%',
-                    fontWeight: 500,
-                    backgroundColor: '#FFFFFF'
-                  }}
-                /> */}
 
                 <Grid container sx={{ marginTop: '1rem', justifyContent: 'center' }}>
                   <Grid item>

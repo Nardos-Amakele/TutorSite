@@ -121,55 +121,46 @@ const Dashboard = () => {
 
   async function handleLogout() {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('JAA_access_token='))
-        .split('=')[1];
-      await fetch("https://ruby-fragile-angelfish.cyclic.app/student/logout", {
-        headers: {
-          "content-type": "application/json",
-          authorization: token
-        }
-      })
-        .then((res) => res.json())
-        .then((res) => {
-          console.log(res)
-          if (res.msg === "Logout successful!") {
-            MySwal.fire({
-              title: res.msg,
-              position: 'center',
-              showConfirmButton: false,
-              timer: 2000,
-              didOpen: () => {
-                // `MySwal` is a subclass of `Swal` with all the same instance & static methods
-                MySwal.showLoading()
-              },
-            }).then(() => {
-              return MySwal.fire({
-                title: <p>Redirecting to Landing Page...</p>
-              })
-            })
+      const result = await MySwal.fire({
+        title: 'Are you sure you want to logout?',
+        text: "You will need to login again to access your account.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#4CAF50',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, logout',
+        cancelButtonText: 'Cancel'
+      });
 
-            setTimeout(() => {
-              navigate('/')
-            }, 2500);
-          } else {
-            MySwal.fire({
-              title: res.msg,
-              position: 'center',
-              showConfirmButton: false,
-              timer: 1500,
-              icon: 'error',
-              didOpen: () => {
-                // `MySwal` is a subclass of `Swal` with all the same instance & static methods
-                MySwal.showLoading()
-              },
-            })
-          }
-        })
-
+      if (result.isConfirmed) {
+        // Clear all auth-related data
+        localStorage.removeItem('token');
+        document.cookie = 'JAA_access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        
+        MySwal.fire({
+          title: 'Logged out successfully!',
+          text: 'Redirecting to home page...',
+          icon: 'success',
+          position: 'center',
+          showConfirmButton: false,
+          timer: 2000,
+          didOpen: () => {
+            MySwal.showLoading()
+          },
+        }).then(() => {
+          navigate('/');
+        });
+      }
     } catch (error) {
-      console.log(error)
+      console.error('Logout error:', error);
+      MySwal.fire({
+        title: 'Error',
+        text: 'An unexpected error occurred. Please try again.',
+        icon: 'error',
+        position: 'center',
+        showConfirmButton: false,
+        timer: 1500
+      });
     }
   }
 

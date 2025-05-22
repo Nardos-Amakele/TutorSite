@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useContext } from "react";
 import { UserContext } from "../UserContext";
 import SignupImg from "./images/signup-image.jpg";
@@ -14,7 +15,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import GoogleButton from 'react-google-button';
 import { Link as LinkR } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
@@ -25,27 +25,20 @@ import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs from 'dayjs';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-function Copyright(props) {
-  return (
-    <Typography variant="body2" color="text.secondary" align="center" {...props}>
-      {'Copyright © '}
-      <Link color="inherit">TutorHub</Link>{' '}
-      {new Date().getFullYear()}
-      {'.'}
-    </Typography>
-  );
-}
+const Copyright = (props) => (
+  <Typography variant="body2" color="text.secondary" align="center" {...props}>
+    {'Copyright © '}
+    <Link color="inherit">TutorHub</Link>{' '}
+    {new Date().getFullYear()}
+    {'.'}
+  </Typography>
+);
 
 const defaultTheme = createTheme({
   palette: {
     primary: {
-      main: '#4CAF50', // Changed to green
+      main: '#4CAF50',
     },
     secondary: {
       main: '#f50057',
@@ -53,25 +46,14 @@ const defaultTheme = createTheme({
   },
 });
 
-const daysOfWeek = [
-  { value: 'monday', label: 'Monday' },
-  { value: 'tuesday', label: 'Tuesday' },
-  { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday', label: 'Thursday' },
-  { value: 'friday', label: 'Friday' },
-  { value: 'saturday', label: 'Saturday' },
-  { value: 'sunday', label: 'Sunday' },
-];
-
 const Signup = () => {
   const [userType, setUserType] = useState('student');
   const [subjects, setSubjects] = useState([]);
   const [newSubject, setNewSubject] = useState('');
-  const [availability, setAvailability] = useState([]);
-  const [selectedDay, setSelectedDay] = useState('');
-  const [startTime, setStartTime] = useState(dayjs('09:00', 'HH:mm'));
-  const [endTime, setEndTime] = useState(dayjs('17:00', 'HH:mm'));
-  const [qualifications, setQualifications] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [newAttachment, setNewAttachment] = useState('');
+  const [hourlyRate, setHourlyRate] = useState('');
+  const [password, setPassword] = useState(''); // Manage password state
 
   const { setName, setId, setEmail, setIsVarified } = useContext(UserContext);
   const navigate = useNavigate();
@@ -83,7 +65,8 @@ const Signup = () => {
     }
   };
 
-  const handleAddSubject = () => {
+  const handleAddSubject = (e) => {
+    e.preventDefault();
     if (newSubject.trim() && subjects.length < 3) {
       setSubjects([...subjects, newSubject.trim()]);
       setNewSubject('');
@@ -96,104 +79,97 @@ const Signup = () => {
     setSubjects(updatedSubjects);
   };
 
-  const handleAddAvailability = () => {
-    if (selectedDay && startTime && endTime) {
-      const newSlot = {
-        day: selectedDay,
-        start: startTime.format('HH:mm'),
-        end: endTime.format('HH:mm')
-      };
-      setAvailability([...availability, newSlot]);
-      setSelectedDay('');
-      setStartTime(dayjs('09:00', 'HH:mm'));
-      setEndTime(dayjs('17:00', 'HH:mm'));
+  const handleAddAttachment = (e) => {
+    e.preventDefault();
+    if (newAttachment.trim()) {
+      setAttachments([...attachments, newAttachment.trim()]);
+      setNewAttachment('');
     }
   };
 
-  const handleRemoveAvailability = (index) => {
-    const updatedAvailability = [...availability];
-    updatedAvailability.splice(index, 1);
-    setAvailability(updatedAvailability);
-  };
-
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    setQualifications([...qualifications, ...files]);
-  };
-
-  const handleRemoveQualification = (index) => {
-    const updatedQualifications = [...qualifications];
-    updatedQualifications.splice(index, 1);
-    setQualifications(updatedQualifications);
+  const handleRemoveAttachment = (index) => {
+    const updatedAttachments = [...attachments];
+    updatedAttachments.splice(index, 1);
+    setAttachments(updatedAttachments);
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    
     const userDetails = {
-      email: data.get('email'),
-      password: data.get('password'),
       name: data.get('firstName') + ' ' + data.get('lastName'),
-      userType: userType,
+      email: data.get('email'),
+      password: password, // Use controlled password state
     };
 
-    if (userType === 'tutor') {
+    if (userType === 'teacher') {
       userDetails.subjects = subjects;
-      userDetails.availability = availability;
+      userDetails.attachments = attachments;
+      userDetails.hourlyRate = Number(hourlyRate);
     }
 
     const endpoint = userType === 'student'
-      ? 'https://ruby-fragile-angelfish.cyclic.app/student/register'
-      : 'https://ruby-fragile-angelfish.cyclic.app/tutor/register';
+      ? 'http://localhost:5000/auth/register/student'
+      : 'http://localhost:5000/auth/register/teacher';
 
-    await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(userDetails)
-    })
-      .then(res => res.json())
-      .then(res => {
-        if (res.msg === "Registration successful") {
-          setName(res.user.name);
-          setId(res.user._id);
-          setEmail(res.user.email);
-          setIsVarified(res.user.isVerified);
-
-          MySwal.fire({
-            title: res.msg,
-            position: 'center',
-            showConfirmButton: false,
-            timer: 1500,
-            didOpen: () => {
-              MySwal.showLoading();
-            },
-          }).then(() => {
-            return MySwal.fire({
-              title: <p>Redirecting to Login Page...</p>
-            });
-          });
-
-          setTimeout(() => {
-            navigate("/login");
-          }, 1500);
-        } else {
-          MySwal.fire({
-            title: res.msg,
-            position: 'center',
-            showConfirmButton: false,
-            timer: 1500,
-            icon: 'error',
-            didOpen: () => {
-              MySwal.showLoading();
-            },
-          });
-        }
-      })
-      .catch((err) => {
-        console.log(err);
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(userDetails)
       });
+
+      const res = await response.json();
+
+      if (res.msg === "Registration successful") {
+        setName(res.user.name);
+        setId(res.user._id);
+        setEmail(res.user.email);
+        setIsVarified(res.user.isVerified);
+
+        MySwal.fire({
+          title: res.msg,
+          position: 'center',
+          showConfirmButton: false,
+          timer: 1500,
+          didOpen: () => {
+            MySwal.showLoading();
+          },
+        }).then(() => {
+          return MySwal.fire({
+            title: <p>Redirecting to Login Page...</p>
+          });
+        });
+
+        setTimeout(() => {
+          navigate("/login");
+        }, 1500);
+      } else {
+        MySwal.fire({
+          title: res.msg,
+          position: 'center',
+          showConfirmButton: false,
+          timer: 1500,
+          icon: 'error',
+          didOpen: () => {
+            MySwal.showLoading();
+          },
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      MySwal.fire({
+        title: "An error occurred",
+        text: "Please try again later",
+        icon: 'error',
+        position: 'center',
+        showConfirmButton: false,
+        timer: 1500,
+      });
+    }
   };
 
   const CustomBox = styled(Box)(({ theme }) => ({
@@ -239,7 +215,7 @@ const Signup = () => {
               }}
             >
               <LinkR to='/'>
-                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} /> {/* Smaller logo */}
+                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} />
               </LinkR>
 
               <Typography component="h1" variant="h5" sx={{ fontWeight: 600 }}>
@@ -255,7 +231,7 @@ const Signup = () => {
                 sx={{ mt: 2, mb: 2 }}
               >
                 <ToggleButton value="student">Student</ToggleButton>
-                <ToggleButton value="tutor">Tutor</ToggleButton>
+                <ToggleButton value="teacher">Teacher</ToggleButton>
               </ToggleButtonGroup>
 
               <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 1 }}>
@@ -299,10 +275,12 @@ const Signup = () => {
                       type="password"
                       id="password"
                       autoComplete="new-password"
+                      value={password} // Controlled input
+                      onChange={(e) => setPassword(e.target.value)} // Update password state
                     />
                   </Grid>
 
-                  {userType === 'tutor' && (
+                  {userType === 'teacher' && (
                     <>
                       <Grid item xs={12}>
                         <Typography variant="subtitle1" gutterBottom>
@@ -315,7 +293,12 @@ const Signup = () => {
                             onChange={(e) => setNewSubject(e.target.value)}
                             label="Add subject"
                             disabled={subjects.length >= 3}
-                            autoFocus
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddSubject(e);
+                              }
+                            }}
                           />
                           <IconButton
                             onClick={handleAddSubject}
@@ -339,98 +322,51 @@ const Signup = () => {
 
                       <Grid item xs={12}>
                         <Typography variant="subtitle1" gutterBottom>
-                          Availability
+                          Attachments
                         </Typography>
-                        <Grid container spacing={2}>
-                          <Grid item xs={4}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Day"
-                              value={selectedDay}
-                              onChange={(e) => setSelectedDay(e.target.value)}
-                              SelectProps={{
-                                native: true,
-                              }}
-                            >
-                              <option value=""></option>
-                              {daysOfWeek.map((day) => (
-                                <option key={day.value} value={day.value}>
-                                  {day.label}
-                                </option>
-                              ))}
-                            </TextField>
-                          </Grid>
-                          <Grid item xs={4}>
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                              <TimePicker
-                                label="Start Time"
-                                value={startTime}
-                                onChange={(newValue) => setStartTime(newValue)}
-                                renderInput={(params) => <TextField {...params} fullWidth />}
-                              />
-                            </LocalizationProvider>
-                          </Grid>
-                          <Grid item xs={4}>
-                            <LocalizationProvider dateAdapter={AdapterDayjs}>
-                              <TimePicker
-                                label="End Time"
-                                value={endTime}
-                                onChange={(newValue) => setEndTime(newValue)}
-                                renderInput={(params) => <TextField {...params} fullWidth />}
-                              />
-                            </LocalizationProvider>
-                          </Grid>
-                        </Grid>
-                        <Button
-                          onClick={handleAddAvailability}
-                          disabled={!selectedDay}
-                          startIcon={<AddIcon />}
-                          sx={{ mt: 1 }}
-                        >
-                          Add Availability
-                        </Button>
-                        <Box sx={{ mt: 2 }}>
-                          {availability.map((slot, index) => (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TextField
+                            fullWidth
+                            value={newAttachment}
+                            onChange={(e) => setNewAttachment(e.target.value)}
+                            label="Add attachment (e.g., cv.pdf)"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddAttachment(e);
+                              }
+                            }}
+                          />
+                          <IconButton
+                            onClick={handleAddAttachment}
+                            disabled={!newAttachment.trim()}
+                            color="primary"
+                          >
+                            <AddIcon />
+                          </IconButton>
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                          {attachments.map((attachment, index) => (
                             <Chip
                               key={index}
-                              label={`${slot.day.charAt(0).toUpperCase() + slot.day.slice(1)}: ${slot.start} - ${slot.end}`}
-                              onDelete={() => handleRemoveAvailability(index)}
+                              label={attachment}
+                              onDelete={() => handleRemoveAttachment(index)}
                               deleteIcon={<DeleteIcon />}
-                              sx={{ m: 0.5 }}
                             />
                           ))}
                         </Box>
                       </Grid>
 
                       <Grid item xs={12}>
-                        <Typography variant="subtitle1" gutterBottom>
-                          Qualifications
-                        </Typography>
-                        <input
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                          style={{ display: 'none' }}
-                          id="qualification-upload"
-                          multiple
-                          type="file"
-                          onChange={handleFileUpload}
+                        <TextField
+                          required
+                          fullWidth
+                          type="number"
+                          label="Hourly Rate ($)"
+                          value={hourlyRate}
+                          onChange={(e) => setHourlyRate(e.target.value)}
+                          inputProps={{ min: 0 }}
                         />
-                        <label htmlFor="qualification-upload">
-                          <Button variant="outlined" component="span" startIcon={<AddIcon />}>
-                            Upload Files
-                          </Button>
-                        </label>
-                        <Box sx={{ mt: 2 }}>
-                          {qualifications.map((file, index) => (
-                            <Chip
-                              key={index}
-                              label={file.name}
-                              onDelete={() => handleRemoveQualification(index)}
-                              deleteIcon={<DeleteIcon />}
-                              sx={{ m: 0.5 }}
-                            />
-                          ))}
-                        </Box>
                       </Grid>
                     </>
                   )}
@@ -452,26 +388,12 @@ const Signup = () => {
                     mb: 2,
                     backgroundColor: 'primary.main',
                     '&:hover': {
-                      backgroundColor: '#3e8e41', // Darker green on hover
+                      backgroundColor: '#3e8e41',
                     }
                   }}
                 >
                   Sign Up
                 </Button>
-
-                {/* <GoogleButton
-                  label="Sign in"
-                  type='dark'
-                  style={{
-                    display: 'block',
-                    margin: '0.1rem auto',
-                    width: '35%',
-                    color: 'gray',
-                    fontSize: '90%',
-                    fontWeight: 500,
-                    backgroundColor: '#FFFFFF'
-                  }}
-                /> */}
 
                 <Grid container justifyContent="center" sx={{ marginTop: '1rem' }}>
                   <Grid item>

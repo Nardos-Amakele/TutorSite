@@ -12,62 +12,81 @@ import {
   Skeleton,
   InputAdornment,
   MenuItem,
-  Chip // Added Chip for a more visually appealing subject/uploader display
+  Chip,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import BookmarkIcon from '@mui/icons-material/Bookmark'; // Not used in the current component, but kept as it was imported
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
-// Extended hardcoded data
-const resourcesData = [
-  {
-    id: 1,
-    title: 'React Documentation',
-    url: 'https://reactjs.org/docs/getting-started.html',
-    description: 'Official React documentation with guides and API references',
-    subject: 'Frontend',
-    uploadedBy: 'Alice'
-  },
-  {
-    id: 2,
-    title: 'TypeScript Handbook',
-    url: 'https://www.typescriptlang.org/docs/handbook/intro.html',
-    description: 'Complete guide to TypeScript features',
-    subject: 'Programming',
-    uploadedBy: 'Bob'
-  },
-  {
-    id: 3,
-    title: 'Material-UI Components',
-    url: 'https://mui.com/material-ui/getting-started/',
-    description: 'Collection of ready-to-use React components',
-    subject: 'UI Library',
-    uploadedBy: 'Alice'
-  },
-  {
-    id: 4,
-    title: 'CSS Tricks',
-    url: 'https://css-tricks.com/',
-    description: 'Daily articles about CSS, HTML, JavaScript, and all things web development',
-    subject: 'Web Design',
-    uploadedBy: 'Charlie'
-  },
-  {
-    id: 5,
-    title: 'MDN Web Docs',
-    url: 'https://developer.mozilla.org/en-US/',
-    description: 'Resources for developers, by developers',
-    subject: 'Web Development',
-    uploadedBy: 'Bob'
-  }
-];
+// Define the Resource type
+interface Resource {
+  _id: string;
+  title: string;
+  url: string;
+  description: string;
+  subject: string;
+  uploadedBy: string;
+}
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [resources] = React.useState(resourcesData);
+  const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
   const [selectedUploader, setSelectedUploader] = React.useState('');
-  const [loading, setLoading] = React.useState(false); // Keeping loading state for potential future use
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: '',
+    severity: 'error' as 'error' | 'success'
+  });
+
+  // Fetch resources from the backend
+  const fetchResources = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch("http://localhost:5000/student/resources", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResources(data.Resources);
+        setError(null);
+      } else {
+        setError(data.msg || 'Failed to fetch resources');
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch resources',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      setError('Error fetching resources');
+      setSnackbar({
+        open: true,
+        message: 'Error fetching resources',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch resources on component mount
+  React.useEffect(() => {
+    fetchResources();
+  }, []);
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   // Derive unique subjects and uploaders for filter dropdowns
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
@@ -88,13 +107,16 @@ const Resources = () => {
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
       {/* Page Title */}
-           <Typography variant="h4" sx={{ fontWeight: 700, mb: 3, color: 'primary.main' }}>
-
+      <Typography variant="h4" sx={{ fontWeight: 700, mb: 3, color: 'primary.main' }}>
         <BookmarkIcon fontSize="large" sx={{ mr: 1 }} />
-
         Learning Resources
-
       </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       {/* Search and Filters */}
       <Stack
@@ -124,7 +146,7 @@ const Resources = () => {
           value={selectedSubject}
           onChange={(e) => setSelectedSubject(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 180 } }}
-          size="medium" // Made it medium for better visual consistency
+          size="medium"
         >
           <MenuItem value="">All Subjects</MenuItem>
           {uniqueSubjects.map(subject => (
@@ -137,7 +159,7 @@ const Resources = () => {
           value={selectedUploader}
           onChange={(e) => setSelectedUploader(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 180 } }}
-          size="medium" // Made it medium for better visual consistency
+          size="medium"
         >
           <MenuItem value="">All Uploaders</MenuItem>
           {uniqueUploaders.map(uploader => (
@@ -157,14 +179,14 @@ const Resources = () => {
           // Display Filtered Resources
           filteredResources.map(resource => (
             <Card
-              key={resource.id}
+              key={resource._id}
               sx={{
                 borderRadius: 2,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Enhanced shadow for depth
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': {
-                  transform: 'translateY(-3px)', // Slightly more pronounced lift
-                  boxShadow: '0 6px 16px rgba(0,0,0,0.12)' // More prominent shadow on hover
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.12)'
                 }
               }}
             >
@@ -208,6 +230,21 @@ const Resources = () => {
           </Typography>
         )}
       </Stack>
+
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
