@@ -33,7 +33,7 @@ TeacherRouter.patch("/availability/add", auth, isTeacher, addAvailability); //ch
 TeacherRouter.patch("/availability/remove", auth, isTeacher, removeAvailability); //checked!!
 
 TeacherRouter.patch("/attachments/add",auth, isTeacher, checkRole, addAttachments)
-TeacherRouter.patch("/attachments/remove/:fileId",auth, isTeacher,  removeAttachments)
+TeacherRouter.patch("/attachments/remove/:fileId",auth, isTeacher, removeAttachment)
 
 TeacherRouter.patch("/subjects/add", auth, isTeacher, addSubject); //checked!!
 TeacherRouter.patch("/subjects/remove", auth, isTeacher, removeSubject); //checked!!

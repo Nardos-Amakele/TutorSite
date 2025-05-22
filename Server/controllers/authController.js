@@ -6,6 +6,7 @@ const { StudentModel } = require("../models/StudentModel");
 const { TeacherModel } = require("../models/TeacherModel");
 const { AdminModel } = require("../models/AdminModel");
 const { FileModel } = require('../models/FileModel')
+const fs = require('fs');
 
 
 const registerUser = async (req, res) => {
@@ -13,9 +14,20 @@ const registerUser = async (req, res) => {
     const { email, password, name, availability, subjects, hourlyRate } = req.body;
     const { role } = req.params;
 
-    // Validate role
-    if (!["student", "teacher", "admin"].includes(role)) {
-      return res.status(400).send({ msg: "Invalid role specified" });
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).send({ msg: "Email, password, and name are required" });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).send({ msg: "Invalid email format" });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).send({ msg: "Password must be at least 8 characters long" });
     }
 
     // Check if user already exists
@@ -34,20 +46,30 @@ const registerUser = async (req, res) => {
         return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
       }
 
-      // Save each uploaded file into DB
-      const savedFiles = await Promise.all(
-        req.files.map(file => {
-          const newFile = new FileModel({
-            filename: file.filename,
-            originalName: file.originalname,
-            path: file.path,
-            mimeType: file.mimetype,
-            size: file.size
-          });
-          return newFile.save();
-        })
-      );
-      attachmentIds = savedFiles.map(f => f._id);
+      try {
+        // Save each uploaded file into DB
+        const savedFiles = await Promise.all(
+          req.files.map(file => {
+            const newFile = new FileModel({
+              filename: file.filename,
+              originalName: file.originalname,
+              path: file.path,
+              mimeType: file.mimetype,
+              size: file.size
+            });
+            return newFile.save();
+          })
+        );
+        attachmentIds = savedFiles.map(f => f._id);
+      } catch (error) {
+        // Clean up uploaded files if database save fails
+        if (req.files) {
+          await Promise.all(req.files.map(file => 
+            fs.unlink(file.path).catch(console.error)
+          ));
+        }
+        throw new Error("Failed to save uploaded files");
+      }
     }
 
     // Hash password
@@ -82,8 +104,18 @@ const registerUser = async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user._id, user.role, user.email);
 
     // Set tokens
-    res.cookie("accessToken", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
-    res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
+    res.cookie("accessToken", accessToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+    res.cookie("refreshToken", refreshToken, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      sameSite: "strict",
+      maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
+    });
     res.setHeader('Authorization', `Bearer ${accessToken}`);
 
     res.status(201).send({

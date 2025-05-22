@@ -22,7 +22,7 @@ const fileFilter = (req, file, cb) => {
   ) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type'), false);
+    cb(new Error('Invalid file type. Only PDF and Word documents are allowed.'), false);
   }
 };
 
@@ -34,21 +34,34 @@ const upload = multer({
   }
 });
 
-
-const checkRole = async (req, res, next) => {
+const checkRole = (req, res, next) => {
   if (req.params.role === 'teacher') {
+    // Validate required fields for teacher registration
+    const { availability, subjects, hourlyRate } = req.body;
+    if (!availability || !subjects || !hourlyRate) {
+      return res.status(400).send({ 
+        msg: "Teacher registration requires availability, subjects, and hourlyRate" 
+      });
+    }
 
     upload.array('attachments', 10)(req, res, function (err) {
-      if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).send({ msg: 'File size too large. Maximum size is 10MB' });
+        }
+        if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).send({ msg: 'Too many files. Maximum is 10 files' });
+        }
+        return res.status(400).send({ msg: err.message });
+      } else if (err) {
         return res.status(400).send({ msg: err.message });
       }
-      next(); // continue to the controller
+      next();
     });
   } else {
-    next(); // no need for file upload
+    next();
   }
-}
-
+};
 
 module.exports = {
   checkRole,
