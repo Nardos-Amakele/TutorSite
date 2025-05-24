@@ -26,6 +26,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 
 const MySwal = withReactContent(Swal);
 
@@ -108,10 +109,109 @@ const Signup = () => {
         email: '',
         password: '',
         subjects: [''],
-        availability: [{ day: '', date: '', startTime: '', endTime: '' }],
+        availability: [{ date: '', startTime: '', endTime: '' }],
         hourlyRate: '',
     });
     const [files, setFiles] = useState([]);
+    const [errors, setErrors] = useState({});
+
+    // Get tomorrow's date in YYYY-MM-DD format
+    const getTomorrowDate = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toISOString().split('T')[0];
+    };
+
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validateStudentForm = () => {
+        const newErrors = {};
+        if (!studentData.name.trim()) {
+            newErrors.name = 'Name is required';
+        }
+        if (!studentData.email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!validateEmail(studentData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+        if (!studentData.password) {
+            newErrors.password = 'Password is required';
+        } else if (studentData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const validateTimeRange = (startTime, endTime) => {
+        if (!startTime || !endTime) return false;
+        return startTime < endTime;
+    };
+
+    const validateDate = (date) => {
+        if (!date) return false;
+        const selectedDate = new Date(date);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        return selectedDate >= tomorrow;
+    };
+
+    const validateTeacherForm = () => {
+        const newErrors = {};
+        if (!teacherData.name.trim()) {
+            newErrors.name = 'Name is required';
+        }
+        if (!teacherData.email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!validateEmail(teacherData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+        if (!teacherData.password) {
+            newErrors.password = 'Password is required';
+        } else if (teacherData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+        if (!teacherData.hourlyRate) {
+            newErrors.hourlyRate = 'Hourly rate is required';
+        }
+        if (teacherData.subjects.some(subject => !subject.trim())) {
+            newErrors.subjects = 'All subjects must be filled';
+        }
+
+        // Validate availability
+        const availabilityErrors = [];
+        teacherData.availability.forEach((avail, index) => {
+            const slotErrors = {};
+            if (!avail.date) {
+                slotErrors.date = 'Date is required';
+            } else if (!validateDate(avail.date)) {
+                slotErrors.date = 'Date must be tomorrow or later';
+            }
+            if (!avail.startTime) {
+                slotErrors.startTime = 'Start time is required';
+            }
+            if (!avail.endTime) {
+                slotErrors.endTime = 'End time is required';
+            }
+            if (avail.startTime && avail.endTime && !validateTimeRange(avail.startTime, avail.endTime)) {
+                slotErrors.timeRange = 'End time must be after start time';
+            }
+            if (Object.keys(slotErrors).length > 0) {
+                availabilityErrors[index] = slotErrors;
+            }
+        });
+
+        if (availabilityErrors.length > 0) {
+            newErrors.availability = availabilityErrors;
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleStudentChange = (e) => {
         setStudentData({ ...studentData, [e.target.name]: e.target.value });
@@ -137,12 +237,20 @@ const Signup = () => {
     };
 
     const addAvailability = () => {
-        setTeacherData({ ...teacherData, availability: [...teacherData.availability, { day: '', date: '', startTime: '', endTime: '' }] });
+        setTeacherData({ ...teacherData, availability: [...teacherData.availability, { date: '', startTime: '', endTime: '' }] });
     };
 
     const handleAvailabilityChange = (index, e) => {
         const newAvailability = [...teacherData.availability];
         newAvailability[index] = { ...newAvailability[index], [e.target.name]: e.target.value };
+        
+        // Clear time range error when either time is changed
+        if (e.target.name === 'startTime' || e.target.name === 'endTime') {
+            if (errors.availability && errors.availability[index]) {
+                delete errors.availability[index].timeRange;
+            }
+        }
+        
         setTeacherData({ ...teacherData, availability: newAvailability });
     };
 
@@ -158,6 +266,9 @@ const Signup = () => {
 
     const handleStudentSubmit = async (e) => {
         e.preventDefault();
+        if (!validateStudentForm()) {
+            return;
+        }
         try {
             const response = await fetch('http://localhost:3000/auth/register/student', {
                 method: 'POST',
@@ -195,6 +306,9 @@ const Signup = () => {
 
     const handleTeacherStep1 = async (e) => {
         e.preventDefault();
+        if (!validateTeacherForm()) {
+            return;
+        }
         try {
             const response = await fetch('http://localhost:3000/auth/register/teacher/data', {
                 method: 'POST',
@@ -321,6 +435,8 @@ const Signup = () => {
                                             label="Name"
                                             onChange={handleTeacherChange}
                                             autoComplete="name"
+                                            error={!!errors.name}
+                                            helperText={errors.name}
                                         />
                     <TextField
                                             margin="normal"
@@ -330,6 +446,8 @@ const Signup = () => {
                                             label="Email"
                                             onChange={handleTeacherChange}
                       autoComplete="email"
+                      error={!!errors.email}
+                      helperText={errors.email}
                     />
                     <TextField
                                             margin="normal"
@@ -340,6 +458,8 @@ const Signup = () => {
                       type="password"
                                             onChange={handleTeacherChange}
                       autoComplete="new-password"
+                      error={!!errors.password}
+                      helperText={errors.password}
                                         />
                                         <TextField
                                             margin="normal"
@@ -349,6 +469,8 @@ const Signup = () => {
                                             label="Hourly Rate"
                                             type="number"
                                             onChange={handleTeacherChange}
+                                            error={!!errors.hourlyRate}
+                                            helperText={errors.hourlyRate}
                                         />
 
                                         <Typography variant="h6" sx={{ mt: 3, mb: 2, color: 'primary.main' }}>Subjects</Typography>
@@ -382,30 +504,17 @@ const Signup = () => {
                                         <Typography variant="h6" sx={{ mt: 3, mb: 2, color: 'primary.main' }}>Availability</Typography>
                                         {teacherData.availability.map((avail, index) => (
                                             <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
-                                                <FormControl sx={{ flex: 1 }}>
-                                                    <InputLabel>Day</InputLabel>
-                                                    <Select
-                                                        name="day"
-                                                        value={avail.day}
-                                                        onChange={(e) => handleAvailabilityChange(index, e)}
-                                                        label="Day"
-                                                        required
-                                                    >
-                                                        <MenuItem value="Monday">Monday</MenuItem>
-                                                        <MenuItem value="Tuesday">Tuesday</MenuItem>
-                                                        <MenuItem value="Wednesday">Wednesday</MenuItem>
-                                                        <MenuItem value="Thursday">Thursday</MenuItem>
-                                                        <MenuItem value="Friday">Friday</MenuItem>
-                                                        <MenuItem value="Saturday">Saturday</MenuItem>
-                                                        <MenuItem value="Sunday">Sunday</MenuItem>
-                                                    </Select>
-                                                </FormControl>
                                                 <TextField
                                                     type="date"
                                                     name="date"
                                                     onChange={(e) => handleAvailabilityChange(index, e)}
                                                     required
                                                     sx={{ flex: 1 }}
+                                                    error={!!(errors.availability && errors.availability[index]?.date)}
+                                                    helperText={errors.availability && errors.availability[index]?.date}
+                                                    inputProps={{
+                                                        min: getTomorrowDate()
+                                                    }}
                                                 />
                                                 <TextField
                                                     type="time"
@@ -413,15 +522,19 @@ const Signup = () => {
                                                     onChange={(e) => handleAvailabilityChange(index, e)}
                                                     required
                                                     sx={{ flex: 1 }}
+                                                    error={!!(errors.availability && (errors.availability[index]?.startTime || errors.availability[index]?.timeRange))}
+                                                    helperText={errors.availability && (errors.availability[index]?.startTime || errors.availability[index]?.timeRange)}
                                                 />
-                          <TextField
+                                                <TextField
                                                     type="time"
                                                     name="endTime"
                                                     onChange={(e) => handleAvailabilityChange(index, e)}
                                                     required
                                                     sx={{ flex: 1 }}
-                          />
-                          <IconButton
+                                                    error={!!(errors.availability && (errors.availability[index]?.endTime || errors.availability[index]?.timeRange))}
+                                                    helperText={errors.availability && (errors.availability[index]?.endTime || errors.availability[index]?.timeRange)}
+                                                />
+                                                <IconButton
                                                     onClick={() => deleteAvailability(index)}
                                                     color="error"
                                                     sx={{ mr: 1 }}
@@ -431,12 +544,12 @@ const Signup = () => {
                                                 {index === teacherData.availability.length - 1 && (
                                                     <IconButton 
                                                         onClick={addAvailability}
-                            color="primary"
-                          >
-                            <AddIcon />
-                          </IconButton>
+                                                        color="primary"
+                                                    >
+                                                        <AddIcon />
+                                                    </IconButton>
                                                 )}
-                        </Box>
+                                            </Box>
                                         ))}
                                     </>
                                 ) : (
@@ -471,6 +584,8 @@ const Signup = () => {
                                         label="Name"
                                         onChange={handleStudentChange}
                                         autoComplete="name"
+                                        error={!!errors.name}
+                                        helperText={errors.name}
                                     />
                                     <TextField
                                         margin="normal"
@@ -480,6 +595,8 @@ const Signup = () => {
                                         label="Email"
                                         onChange={handleStudentChange}
                                         autoComplete="email"
+                                        error={!!errors.email}
+                                        helperText={errors.email}
                                     />
                         <TextField
                                         margin="normal"
@@ -490,6 +607,8 @@ const Signup = () => {
                                         type="password"
                                         onChange={handleStudentChange}
                                         autoComplete="new-password"
+                                        error={!!errors.password}
+                                        helperText={errors.password}
                                     />
                     </>
                   )}

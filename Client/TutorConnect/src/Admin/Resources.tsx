@@ -75,17 +75,15 @@ const theme = createTheme({
 interface Resource {
   _id: string;
   title: string;
-  url: string;
+  link: string;
   description: string;
   subject: string;
-  uploadedBy: string;
 }
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
-  const [selectedUploader, setSelectedUploader] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [snackbar, setSnackbar] = React.useState({
     open: false,
@@ -185,9 +183,8 @@ const Resources = () => {
     }
   };
 
-  // Derive unique subjects and uploaders for filter dropdowns
+  // Derive unique subjects for filter dropdown
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
-  const uniqueUploaders = [...new Set(resources.map(r => r.uploadedBy))];
 
   // Filter resources based on search term and selected filters
   const filteredResources = resources.filter(resource => {
@@ -196,9 +193,8 @@ const Resources = () => {
       resource.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const subjectMatch = selectedSubject ? resource.subject === selectedSubject : true;
-    const uploaderMatch = selectedUploader ? resource.uploadedBy === selectedUploader : true;
 
-    return searchMatch && subjectMatch && uploaderMatch;
+    return searchMatch && subjectMatch;
   });
 
   return (
@@ -208,6 +204,7 @@ const Resources = () => {
         maxWidth: 1200, 
         mx: 'auto',
         background: 'linear-gradient(to bottom, #f5f5f5 0%, #e8f5e9 100%)',
+        width: '100%',
         minHeight: '100vh'
       }}>
         <Typography variant="h4" sx={{ 
@@ -273,19 +270,6 @@ const Resources = () => {
               <MenuItem key={subject} value={subject}>{subject}</MenuItem>
             ))}
           </TextField>
-          <TextField
-            select
-            label="Uploader"
-            value={selectedUploader}
-            onChange={(e) => setSelectedUploader(e.target.value)}
-            sx={{ minWidth: { xs: '100%', sm: 180 } }}
-            size="medium"
-          >
-            <MenuItem value="">All Uploaders</MenuItem>
-            {uniqueUploaders.map(uploader => (
-              <MenuItem key={uploader} value={uploader}>{uploader}</MenuItem>
-            ))}
-          </TextField>
         </Stack>
 
         {/* Resource Cards */}
@@ -316,15 +300,15 @@ const Resources = () => {
                   }
                 }}
               >
-                <Box sx={{ display: 'flex' }}>
-                  <CardActionArea
-                    component="a"
-                    href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ p: 2, flexGrow: 1 }}
-                  >
-                    <CardContent sx={{ p: 0 }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <CardActionArea
+                      component="a"
+                      href={resource.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ flex: 1 }}
+                    >
                       <Typography
                         variant="h6"
                         sx={{
@@ -333,11 +317,11 @@ const Resources = () => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: 1,
-                          color: 'primary.dark'
+                          color: 'text.primary'
                         }}
                       >
                         {resource.title}
-                        <OpenInNewIcon fontSize="small" color="primary" />
+                        <OpenInNewIcon fontSize="small" color="action" />
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                         {resource.description}
@@ -353,19 +337,8 @@ const Resources = () => {
                             color: 'primary.dark'
                           }}
                         />
-                        <Chip 
-                          label={`Uploaded by: ${resource.uploadedBy}`} 
-                          size="small" 
-                          variant="outlined"
-                          sx={{
-                            borderColor: 'secondary.main',
-                            color: 'text.secondary'
-                          }}
-                        />
                       </Stack>
-                    </CardContent>
-                  </CardActionArea>
-                  <CardActions sx={{ p: 2, alignItems: 'center' }}>
+                    </CardActionArea>
                     <IconButton 
                       aria-label="delete"
                       onClick={() => handleDeleteResource(resource._id)}
@@ -378,8 +351,8 @@ const Resources = () => {
                     >
                       <DeleteIcon />
                     </IconButton>
-                  </CardActions>
-                </Box>
+                  </Stack>
+                </CardContent>
               </Card>
             ))
           ) : (
@@ -403,7 +376,6 @@ const Resources = () => {
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedSubject('');
-                  setSelectedUploader('');
                 }}
               >
                 Reset Filters

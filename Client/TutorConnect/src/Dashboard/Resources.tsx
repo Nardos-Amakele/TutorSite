@@ -24,7 +24,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 interface Resource {
   _id: string;
   title: string;
-  url: string;
+  link: string;
   description: string;
   subject: string;
   uploadedBy: string;
@@ -34,7 +34,6 @@ const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
-  const [selectedUploader, setSelectedUploader] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [snackbar, setSnackbar] = React.useState({
@@ -105,9 +104,8 @@ const Resources = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  // Derive unique subjects and uploaders for filter dropdowns
+  // Derive unique subjects for filter dropdown
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
-  const uniqueUploaders = [...new Set(resources.map(r => r.uploadedBy))];
 
   // Filter resources based on search term and selected filters
   const filteredResources = resources.filter(resource => {
@@ -116,13 +114,12 @@ const Resources = () => {
       resource.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const subjectMatch = selectedSubject ? resource.subject === selectedSubject : true;
-    const uploaderMatch = selectedUploader ? resource.uploadedBy === selectedUploader : true;
 
-    return searchMatch && subjectMatch && uploaderMatch;
+    return searchMatch && subjectMatch;
   });
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: 3, width: '100%', maxWidth: '100vw', mx: 'auto' }}>
       {/* Page Title */}
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 3, color: 'primary.main' }}>
         <BookmarkIcon fontSize="large" sx={{ mr: 1 }} />
@@ -170,19 +167,6 @@ const Resources = () => {
             <MenuItem key={subject} value={subject}>{subject}</MenuItem>
           ))}
         </TextField>
-        <TextField
-          select
-          label="Uploader"
-          value={selectedUploader}
-          onChange={(e) => setSelectedUploader(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 180 } }}
-          size="medium"
-        >
-          <MenuItem value="">All Uploaders</MenuItem>
-          {uniqueUploaders.map(uploader => (
-            <MenuItem key={uploader} value={uploader}>{uploader}</MenuItem>
-          ))}
-        </TextField>
       </Stack>
 
       {/* Resource Cards */}
@@ -196,7 +180,7 @@ const Resources = () => {
           // Display Filtered Resources
           filteredResources.map(resource => (
             <Card
-              key={resource.uploadedBy}
+              key={resource._id}
               sx={{
                 borderRadius: 2,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -207,37 +191,38 @@ const Resources = () => {
                 }
               }}
             >
-              <CardActionArea
-                component="a"
-                href={resource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ p: 2 }}
-              >
-                <CardContent sx={{ p: 0 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      mb: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      color: 'text.primary'
-                    }}
+              <CardContent sx={{ p: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                  <CardActionArea
+                    component="a"
+                    href={resource.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ flex: 1 }}
                   >
-                    {resource.title}
-                    <OpenInNewIcon fontSize="small" color="action" />
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    {resource.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                    <Chip label={resource.subject} size="small" color="primary" variant="outlined" />
-                    <Chip label={`Uploaded by: ${resource.uploadedBy}`} size="small" variant="outlined" />
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        mb: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        color: 'text.primary'
+                      }}
+                    >
+                      {resource.title}
+                      <OpenInNewIcon fontSize="small" color="action" />
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                      {resource.description}
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                      <Chip label={resource.subject} size="small" color="primary" variant="outlined" />
+                    </Stack>
+                  </CardActionArea>
+                </Stack>
+              </CardContent>
             </Card>
           ))
         ) : (

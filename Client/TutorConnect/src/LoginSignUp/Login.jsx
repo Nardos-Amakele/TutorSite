@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { UserContext } from "../UserContext";
 import SigninImg from "./images/signin-image.jpg";
 import Logo from '../Landing/media/logo.png';
@@ -43,77 +43,101 @@ const Login = () => {
   const { setName, setId, setEmail, setIsVarified, setRole } = useContext(UserContext);
   const navigate = useNavigate();
   const MySwal = withReactContent(Swal);
+  const [errors, setErrors] = useState({});
 
- const handleSubmit = async (event) => {
-  event.preventDefault();
-  const data = new FormData(event.currentTarget);
-  const userDetails = {
-    email: data.get('email'),
-    password: data.get('password'),
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
-  try {
-    const response = await fetch("http://localhost:3000/auth/login", {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(userDetails),
-      credentials: 'include' // Ensure credentials are included
-    });
+  const validateForm = (email, password) => {
+    const newErrors = {};
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    const res = await response.json();
-    console.log("Backend Response:", res); // Debug log
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const userDetails = {
+      email: data.get('email'),
+      password: data.get('password'),
+    };
 
-    if (response.ok && res.msg === "Login successful" && res.token && res.user) {
-      // Store token in cookies
-      document.cookie = `JAA_access_token=${res.token}; path=/; secure; samesite=strict`;
+    if (!validateForm(userDetails.email, userDetails.password)) {
+      return;
+    }
 
-      // Update user context
-      setName(res.user.name);
-      setId(res.user._id);
-      setEmail(res.user.email);
-      setRole(res.user.role);
-      setIsVarified(true);
-
-      // SweetAlert for success
-      await MySwal.fire({
-        title: res.msg,
-        icon: 'success',
-        timer: 1500,
-        showConfirmButton: false,
-        position: 'center',
+    try {
+      const response = await fetch("http://localhost:3000/auth/login", {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(userDetails),
+        credentials: 'include' // Ensure credentials are included
       });
 
-      // Navigate based on role
-      switch (res.user.role) {
-        case 'student':
-          navigate("/dashboard");
-          break;
-        case 'admin':
-           navigate("/admin");
-           break;
-        case 'teacher':
-          navigate("/teacherdashboard");
-          break;
-        default:
-          navigate("/");
-          break;
+      const res = await response.json();
+      console.log("Backend Response:", res); // Debug log
+
+      if (response.ok && res.msg === "Login successful" && res.token && res.user) {
+        // Store token in cookies
+        document.cookie = `JAA_access_token=${res.token}; path=/; secure; samesite=strict`;
+
+        // Update user context
+        setName(res.user.name);
+        setId(res.user._id);
+        setEmail(res.user.email);
+        setRole(res.user.role);
+        setIsVarified(true);
+
+        // SweetAlert for success
+        await MySwal.fire({
+          title: res.msg,
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          position: 'center',
+        });
+
+        // Navigate based on role
+        switch (res.user.role) {
+          case 'student':
+            navigate("/dashboard");
+            break;
+          case 'admin':
+             navigate("/admin");
+             break;
+          case 'teacher':
+            navigate("/teacherdashboard");
+            break;
+          default:
+            navigate("/");
+            break;
+        }
+      } else {
+        throw new Error(res.msg || "Login failed");
       }
-    } else {
-      throw new Error(res.msg || "Login failed");
+    } catch (err) {
+      console.error("Login error:", err);
+      MySwal.fire({
+        title: "Login Failed",
+        text: err.message || "Please check your credentials and try again.",
+        icon: 'error',
+        timer: 2000,
+        showConfirmButton: false,
+      });
     }
-  } catch (err) {
-    console.error("Login error:", err);
-    MySwal.fire({
-      title: "Login Failed",
-      text: err.message || "Please check your credentials and try again.",
-      icon: 'error',
-      timer: 2000,
-      showConfirmButton: false,
-    });
-  }
-};
+  };
 
   const CustomBox = styled(Box)(({ theme }) => ({
     width: '60%',
@@ -173,6 +197,8 @@ const Login = () => {
                   name="email"
                   autoComplete="email"
                   autoFocus
+                  error={!!errors.email}
+                  helperText={errors.email}
                 />
                 <TextField
                   margin="normal"
@@ -183,6 +209,8 @@ const Login = () => {
                   type="password"
                   id="password"
                   autoComplete="current-password"
+                  error={!!errors.password}
+                  helperText={errors.password}
                 />
                 {/* <FormControlLabel
                   control={<Checkbox value="remember" color="primary" />}

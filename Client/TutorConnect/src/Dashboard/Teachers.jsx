@@ -281,7 +281,7 @@ const fetchTeachers = async () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, width: '100%', maxWidth: '100vw' }}>
       <Box sx={{ mb: 4 }}>
         <TextField
           fullWidth
@@ -317,7 +317,7 @@ const fetchTeachers = async () => {
           transform: 'translateY(-5px)',
           boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
         },
-        height: '100%',
+        width: '100%',
         display: 'flex',
         flexDirection: 'column'
       }}>

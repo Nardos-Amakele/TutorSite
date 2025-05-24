@@ -273,6 +273,7 @@ const Teachers = () => {
                 flexDirection: 'column',
                 gap: 3,
                 background: 'linear-gradient(to bottom, #f5f5f5 0%, #e8f5e9 100%)',
+                width: '100%',
                 minHeight: '100vh'
             }}>
                 {/* Search Bar */}

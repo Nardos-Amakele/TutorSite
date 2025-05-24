@@ -55,19 +55,29 @@ const Booked = () => {
     const token = tokenMatch.split('=')[1];
 
     const response = await fetch("http://localhost:3000/student/bookings", {
-      method: 'GET', // Ensure you specify the method
+      method: 'GET',
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      credentials: 'include' // Include cookies in the request
+      credentials: 'include'
     });
 
     const data = await response.json();
     
     if (response.ok) {
       if (data.bookings) {
-        setBookings(data.bookings);
+        // Sort bookings to show confirmed ones at the top
+        const sortedBookings = [...data.bookings].sort((a, b) => {
+          // If a is confirmed and b is not, a comes first
+          if (a.status === 'confirmed' && b.status !== 'confirmed') return -1;
+          // If b is confirmed and a is not, b comes first
+          if (b.status === 'confirmed' && a.status !== 'confirmed') return 1;
+          // If both are confirmed or both are not confirmed, sort by date
+          return new Date(a.date) - new Date(b.date);
+        });
+        console.log('Sorted bookings:', sortedBookings);
+        setBookings(sortedBookings);
         setError(null);
       } else {
         setBookings([]);
@@ -226,6 +236,32 @@ const Booked = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
+  // Format date display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Invalid date';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Handle join class
+  const handleJoinClass = (meetingLink) => {
+    console.log('Meeting link:', meetingLink);
+    if (!meetingLink) {
+      setSnackbar({
+        open: true,
+        message: 'Meeting link not available yet. Please check your email or contact the tutor.',
+        severity: 'error'
+      });
+      return;
+    }
+    window.open(meetingLink, '_blank');
+  };
+
   // Fetch bookings on component mount
   React.useEffect(() => {
     fetchBookings();
@@ -309,8 +345,8 @@ const Booked = () => {
                   {booking.teacherEmail}
                 </Typography>
                 <Typography variant="body1">
-                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Day:</Box>
-                  {booking.day}
+                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Date:</Box>
+                  {formatDate(booking.date)}
                 </Typography>
                 <Typography variant="body1">
                   <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Time:</Box>
@@ -323,6 +359,10 @@ const Booked = () => {
                   <Button
                     variant="contained"
                     startIcon={<VideocamIcon />}
+                    onClick={() => {
+                      console.log('Booking data:', booking);
+                      handleJoinClass(booking.meetingLink || booking.meeting_url || booking.meetingUrl);
+                    }}
                     sx={{
                       px: 4,
                       backgroundColor: '#4CAF50',

@@ -36,6 +36,7 @@ interface UserContextType {
   name: string;
   email: string;
   id: string;
+  setName: (name: string) => void;
 }
 
 interface ProfileUpdateRequest {
@@ -47,6 +48,7 @@ interface ProfileUpdateRequest {
 
 interface Availability {
   day: string;
+  date: string;
   startTime: string;
   endTime: string;
 }
@@ -67,9 +69,14 @@ interface Profile {
 }
 
 const Profile: React.FC = () => {
-  const { name, email, id } = useContext(UserContext) as UserContextType;
+  const { name, email, id, setName } = useContext(UserContext) as UserContextType;
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [trialInfo, setTrialInfo] = useState<{
+    daysRemaining: number;
+    isActive: boolean;
+  } | null>(null);
+  const [showTrialDialog, setShowTrialDialog] = useState(false);
   const [editedData, setEditedData] = useState({
     name: '',
     email: '',
@@ -88,6 +95,7 @@ const Profile: React.FC = () => {
     severity: 'success' as 'success' | 'error'
   });
   const [openDialog, setOpenDialog] = useState(false);
+  const [timeError, setTimeError] = useState<string>('');
 
   // Fetch profile data
   const fetchProfile = async () => {
@@ -144,8 +152,53 @@ const Profile: React.FC = () => {
     }
   };
 
+  // Add this new function to fetch trial information
+  const fetchTrialInfo = async () => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      
+      if (!tokenMatch) {
+        console.error('Authentication token not found');
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:3000/teacher/account-info", {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        const daysSinceCreation = data.accountInfo.daysSinceCreation;
+        const daysRemaining = Math.max(0, 7 - daysSinceCreation);
+        const isActive = daysRemaining > 0;
+        
+        setTrialInfo({
+          daysRemaining,
+          isActive
+        });
+
+        // Show dialog if trial is about to end (less than 2 days remaining)
+        if (daysRemaining <= 2 && daysRemaining > 0) {
+          setShowTrialDialog(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching trial info:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    fetchTrialInfo();
   }, []);
 
   const handleEdit = () => {
@@ -193,6 +246,9 @@ const Profile: React.FC = () => {
       const data = await response.json();
       
       if (response.ok) {
+        // Update the UserContext with the new name
+        setName(editedData.name);
+        
         setSnackbar({
           open: true,
           message: 'Profile updated successfully',
@@ -323,8 +379,20 @@ const Profile: React.FC = () => {
     }
   };
 
+  const validateTimeRange = (start: Dayjs | null, end: Dayjs | null) => {
+    if (!start || !end) return false;
+    return start.isBefore(end);
+  };
+
   const handleAddAvailability = async () => {
     if (!selectedDay || !startTime || !endTime) return;
+
+    // Validate time range
+    if (!validateTimeRange(startTime, endTime)) {
+      setTimeError('End time must be after start time');
+      return;
+    }
+    setTimeError('');
 
     try {
       const cookieString = document.cookie;
@@ -349,7 +417,7 @@ const Profile: React.FC = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          day: selectedDay,
+          date: selectedDay,
           startTime: startTime.format('HH:mm'),
           endTime: endTime.format('HH:mm')
         })
@@ -453,6 +521,113 @@ const Profile: React.FC = () => {
     return <DescriptionIcon sx={{ color: '#2196f3' }} />;
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Add this new component for the trial status dialog
+  const TrialStatusDialog = () => (
+    <Dialog
+      open={showTrialDialog}
+      onClose={() => setShowTrialDialog(false)}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        bgcolor: trialInfo?.daysRemaining === 0 ? 'error.main' : 'warning.main',
+        color: 'white'
+      }}>
+        <Typography variant="h6">
+          {trialInfo?.daysRemaining === 0 ? 'Trial Period Ended' : 'Trial Period Ending Soon'}
+        </Typography>
+        <IconButton onClick={() => setShowTrialDialog(false)} sx={{ color: 'white' }}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ mt: 2 }}>
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          {trialInfo?.daysRemaining === 0 ? (
+            <>
+              <Typography variant="h6" color="error" gutterBottom>
+                Your free trial has ended
+              </Typography>
+              <Typography variant="body1" paragraph>
+                To continue using TutorConnect, please contact the administrator to set up your subscription.
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography variant="h6" color="warning.main" gutterBottom>
+                {trialInfo?.daysRemaining} {trialInfo?.daysRemaining === 1 ? 'day' : 'days'} remaining in your trial
+              </Typography>
+              <Typography variant="body1" paragraph>
+                Your free trial period will end soon. To continue using TutorConnect after the trial, please contact the administrator to set up your subscription.
+              </Typography>
+            </>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button 
+          onClick={() => setShowTrialDialog(false)} 
+          color="primary"
+          variant="contained"
+        >
+          I Understand
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  // Add this component for the trial status banner
+  const TrialStatusBanner = () => {
+    if (!trialInfo) return null;
+
+    return (
+      <Box sx={{ 
+        mb: 3,
+        p: 2,
+        borderRadius: 2,
+        bgcolor: trialInfo.daysRemaining === 0 ? 'error.light' : 'warning.light',
+        color: trialInfo.daysRemaining === 0 ? 'error.dark' : 'warning.dark',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <Typography>
+          {trialInfo.daysRemaining === 0 
+            ? 'Your free trial has ended. Please contact the administrator to continue using TutorConnect.'
+            : `${trialInfo.daysRemaining} ${trialInfo.daysRemaining === 1 ? 'day' : 'days'} remaining in your free trial`}
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setShowTrialDialog(true)}
+          sx={{ 
+            color: 'inherit',
+            borderColor: 'inherit',
+            '&:hover': {
+              borderColor: 'inherit',
+              bgcolor: 'rgba(0, 0, 0, 0.04)'
+            }
+          }}
+        >
+          Learn More
+        </Button>
+      </Box>
+    );
+  };
+
   if (!profile) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -464,6 +639,7 @@ const Profile: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ padding: 4, borderRadius: '16px', boxShadow: 4 }}>
+        <TrialStatusBanner />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>My Profile</Typography>
           {!isEditing ? (
@@ -552,25 +728,32 @@ const Profile: React.FC = () => {
             <Typography variant="subtitle1">Availability</Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                select
+                type="date"
                 fullWidth
-                label="Day"
+                label="Date"
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(e.target.value)}
-                SelectProps={{ native: true }}
+                inputProps={{
+                  min: new Date().toISOString().split('T')[0]
+                }}
                 disabled={!isEditing}
-              >
-                <option value=""></option>
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </TextField>
+                sx={{
+                  '& .MuiInputBase-root': {
+                    position: 'relative'
+                  }
+                }}
+              />
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <TimePicker
                   label="Start Time"
                   value={startTime}
                   onChange={(newValue) => {
                     setStartTime(newValue);
+                    if (endTime && newValue && !validateTimeRange(newValue, endTime)) {
+                      setTimeError('End time must be after start time');
+                    } else {
+                      setTimeError('');
+                    }
                   }}
                   components={{ 
                     TextField: (props) => <TextField {...props} fullWidth /> 
@@ -582,6 +765,11 @@ const Profile: React.FC = () => {
                   value={endTime}
                   onChange={(newValue) => {
                     setEndTime(newValue);
+                    if (startTime && newValue && !validateTimeRange(startTime, newValue)) {
+                      setTimeError('End time must be after start time');
+                    } else {
+                      setTimeError('');
+                    }
                   }}
                   components={{ 
                     TextField: (props) => <TextField {...props} fullWidth /> 
@@ -590,10 +778,15 @@ const Profile: React.FC = () => {
                 />
               </LocalizationProvider>
             </Box>
+            {timeError && (
+              <Typography color="error" variant="caption" sx={{ mt: 1, display: 'block' }}>
+                {timeError}
+              </Typography>
+            )}
             {isEditing && (
               <Button 
                 onClick={handleAddAvailability} 
-                disabled={!selectedDay} 
+                disabled={!selectedDay || !!timeError} 
                 startIcon={<AddIcon />} 
                 sx={{ mt: 1 }}
               >
@@ -604,7 +797,7 @@ const Profile: React.FC = () => {
               {profile.availability.map((slot, index) => (
                 <Chip 
                   key={index} 
-                  label={`${slot.day}: ${slot.startTime} - ${slot.endTime}`} 
+                  label={`${formatDate(slot.date)}: ${slot.startTime} - ${slot.endTime}`} 
                   onDelete={isEditing ? () => handleRemoveAvailability(slot) : undefined} 
                   deleteIcon={isEditing ? <DeleteIcon /> : undefined} 
                   sx={{ m: 0.5 }} 
@@ -719,6 +912,8 @@ const Profile: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      <TrialStatusDialog />
     </Container>
   );
 };

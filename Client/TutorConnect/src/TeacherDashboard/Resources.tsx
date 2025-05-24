@@ -41,7 +41,6 @@ const Resources = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [selectedSubject, setSelectedSubject] = React.useState('');
-  const [selectedUploader, setSelectedUploader] = React.useState('');
   const [loading, setLoading] = React.useState(true);
   const [openDialog, setOpenDialog] = React.useState(false);
   const [newResource, setNewResource] = React.useState({
@@ -224,9 +223,8 @@ const Resources = () => {
     }
   };
 
-  // Derive unique subjects and uploaders for filter dropdowns
+  // Derive unique subjects for filter dropdown
   const uniqueSubjects = [...new Set(resources.map(r => r.subject))];
-  const uniqueUploaders = [...new Set(resources.map(r => r.uploadedBy))];
 
   // Filter resources based on search term and selected filters
   const filteredResources = resources.filter(resource => {
@@ -235,9 +233,8 @@ const Resources = () => {
       resource.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const subjectMatch = selectedSubject ? resource.subject === selectedSubject : true;
-    const uploaderMatch = selectedUploader ? resource.uploadedBy === selectedUploader : true;
 
-    return searchMatch && subjectMatch && uploaderMatch;
+    return searchMatch && subjectMatch;
   });
 
   // Fetch resources on component mount
@@ -246,7 +243,7 @@ const Resources = () => {
   }, []);
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: 3, width: '100%', maxWidth: '100vw', mx: 'auto' }}>
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 3, color: 'primary.main' }}>
         <BookmarkIcon fontSize="large" sx={{ mr: 1 }} />
         Learning Resources
@@ -334,19 +331,6 @@ const Resources = () => {
             <MenuItem key={subject} value={subject}>{subject}</MenuItem>
           ))}
         </TextField>
-        <TextField
-          select
-          label="Uploader"
-          value={selectedUploader}
-          onChange={(e) => setSelectedUploader(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 180 } }}
-          size="medium"
-        >
-          <MenuItem value="">All Uploaders</MenuItem>
-          {uniqueUploaders.map(uploader => (
-            <MenuItem key={uploader} value={uploader}>{uploader}</MenuItem>
-          ))}
-        </TextField>
       </Stack>
 
       {/* Resource Cards */}
@@ -397,7 +381,6 @@ const Resources = () => {
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                       <Chip label={resource.subject} size="small" color="primary" variant="outlined" />
-                      <Chip label={`Uploaded by: ${resource.uploadedBy}`} size="small" variant="outlined" />
                     </Stack>
                   </CardActionArea>
                   {resource.uploadedBy === currentTeacherId && (

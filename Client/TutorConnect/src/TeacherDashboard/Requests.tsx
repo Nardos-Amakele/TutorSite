@@ -311,6 +311,7 @@ const Requests = () => {
       <Box sx={{ 
         p: 4, // Increased padding
         mx: 'auto',
+        width: '100%',
         background: 'linear-gradient(to bottom, #f5f5f5 0%, #e8f5e9 100%)',
         minHeight: '100vh',
         display: 'flex',
@@ -319,7 +320,6 @@ const Requests = () => {
       }}>
         <Box sx={{ 
           width: '100%',
-          maxWidth: '1200px' // Wider container
         }}>
           <Typography variant="h4" sx={{ 
             fontWeight: 700, 

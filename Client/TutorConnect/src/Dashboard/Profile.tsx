@@ -21,10 +21,17 @@ interface UserContextType {
   name: string;
   email: string;
   id: string;
+  setName: (name: string) => void;
+}
+
+interface ProfileUpdateRequest {
+  name: string;
+  email: string;
+  password?: string;
 }
 
 const Profile: React.FC = () => {
-  const { name, email, id } = useContext(UserContext) as UserContextType;
+  const { name, email, id, setName } = useContext(UserContext) as UserContextType;
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState({
     name: name || '',
@@ -37,126 +44,140 @@ const Profile: React.FC = () => {
     severity: 'success' as 'success' | 'error'
   });
 
+  // Update local state when context changes
+  useEffect(() => {
+    setEditedData(prev => ({
+      ...prev,
+      name: name || '',
+      email: email || ''
+    }));
+  }, [name, email]);
+
   // Fetch user profile when component mounts
   useEffect(() => {
     fetchProfile();
   }, []);
 
-
   const handleEdit = () => {
     setIsEditing(true);
   };
 
-const fetchProfile = async () => {
-  try {
-    const cookieString = document.cookie; // Retrieve cookies
-    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+  const fetchProfile = async () => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-    if (!tokenMatch) {
-      setSnackbar({
-        open: true,
-        message: 'Authentication token not found',
-        severity: 'error'
-      });
-      return;
-    }
-
-    const token = tokenMatch.split('=')[1]; // Extract token from cookies
-
-    const response = await fetch("http://localhost:3000/student/profile", {
-      method: 'GET',
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` // Use the token from cookies
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
       }
-    });
 
-    const data = await response.json();
-    
-    if (response.ok) {
-      setEditedData({
-        name: data.student.name || '',
-        email: data.student.email || '',
-        password: ''
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:3000/student/profile", {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
       });
-    } else {
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setEditedData({
+          name: data.student.name || '',
+          email: data.student.email || '',
+          password: ''
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch profile',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
       setSnackbar({
         open: true,
-        message: data.msg || 'Failed to fetch profile',
+        message: 'Error fetching profile',
         severity: 'error'
       });
     }
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-    setSnackbar({
-      open: true,
-      message: 'Error fetching profile',
-      severity: 'error'
-    });
-  }
-};
+  };
 
-const handleSave = async () => {
-  try {
-    const cookieString = document.cookie; // Retrieve cookies
-    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+  const handleSave = async () => {
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-    if (!tokenMatch) {
+      if (!tokenMatch) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      const token = tokenMatch.split('=')[1];
+
+      // Create request body without password if it's empty
+      const requestBody: ProfileUpdateRequest = {
+        name: editedData.name,
+        email: editedData.email
+      };
+
+      // Only add password to request body if it's not empty
+      if (editedData.password.trim()) {
+        requestBody.password = editedData.password;
+      }
+
+      const response = await fetch("http://localhost:3000/student/profile", {
+        method: 'PATCH',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        setIsEditing(false);
+        setSnackbar({
+          open: true,
+          message: 'Profile updated successfully',
+          severity: 'success'
+        });
+        // Update the name in UserContext
+        setName(editedData.name);
+        // Clear password field after successful update
+        setEditedData(prev => ({ ...prev, password: '' }));
+        // Refresh profile data
+        fetchProfile();
+      } else {
+        setSnackbar({
+          open: true,
+          message: result.msg || 'Failed to update profile',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
       setSnackbar({
         open: true,
-        message: 'Authentication token not found',
+        message: 'Error updating profile',
         severity: 'error'
       });
-      return;
     }
-
-    const token = tokenMatch.split('=')[1]; // Extract token from cookies
-
-    const dataToSend = {
-      name: editedData.name,
-      email: editedData.email
-    };
-    
-    if (editedData.password) {
-      dataToSend.password = editedData.password;
-    }
-
-    const response = await fetch("http://localhost:3000/student/profile", {
-      method: 'PATCH',
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}` // Use the token from cookies
-      },
-      body: JSON.stringify(dataToSend)
-    });
-
-    const result = await response.json();
-    
-    if (response.ok) {
-      setIsEditing(false);
-      setSnackbar({
-        open: true,
-        message: 'Profile updated successfully',
-        severity: 'success'
-      });
-      // Refresh profile data
-      fetchProfile();
-    } else {
-      setSnackbar({
-        open: true,
-        message: result.msg || 'Failed to update profile',
-        severity: 'error'
-      });
-    }
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    setSnackbar({
-      open: true,
-      message: 'Error updating profile',
-      severity: 'error'
-    });
-  }
-};
+  };
 
   const handleCancel = () => {
     setIsEditing(false);
