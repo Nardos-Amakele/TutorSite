@@ -378,63 +378,60 @@ const getAvailableSlots = async (req, res) => {
     const teacher = await TeacherModel.findById(teacherId);
     if (!teacher) return res.status(404).send({ msg: "Teacher not found" });
 
-    let availability = teacher.availability;
-    let targetDay;
-    let formattedDate = null;
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // 2. If date is provided, filter availability by day
+    // Filter out past dates and sort by date
+    let availability = teacher.availability
+      .filter(slot => {
+        const slotDate = new Date(slot.date);
+        return slotDate >= today;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // If date is provided, filter for that specific date
     if (date) {
-      const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) {
-        return res.status(400).send({ msg: "Invalid date format" });
-      }
-      targetDay = dateObj.toLocaleDateString("en-US", { weekday: "long" });
-      formattedDate = dateObj.toISOString().split("T")[0]; // e.g., "2025-05-22"
-
-      // Filter for the specific day
-      availability = availability.filter(slot => slot.day === targetDay);
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      availability = availability.filter(slot => {
+        const slotDate = new Date(slot.date);
+        slotDate.setHours(0, 0, 0, 0);
+        return slotDate.getTime() === targetDate.getTime();
+      });
     }
 
-    // 3. Get active bookings (filtered by date if given)
+    // Get active bookings for the teacher
     const activeBookings = await BookingModel.find({
       teacher: teacherId,
-      status: { $in: ["pending", "confirmed"] },
-      ...(date && { date: new Date(date) })
+      status: { $in: ["pending", "confirmed"] }
     });
 
-    // 4. Filter out overlapping slots
-    const filteredAvailability = [];
+    // Filter out slots that have bookings
+    const availableSlots = availability.filter(slot => {
+      const slotDate = new Date(slot.date);
+      const slotStart = new Date(`${slot.date}T${slot.startTime}`);
+      const slotEnd = new Date(`${slot.date}T${slot.endTime}`);
 
-    for (const slot of availability) {
-      const bookingsForDay = activeBookings.filter(booking => {
-        const bookingDay = booking.date.toLocaleDateString('en-US', { weekday: 'long' });
-        return bookingDay === slot.day;
+      // Check if there's any booking that overlaps with this slot
+      return !activeBookings.some(booking => {
+        const bookingDate = new Date(booking.date);
+        const bookingStart = new Date(`${booking.date}T${booking.timeSlot.start}`);
+        const bookingEnd = new Date(`${booking.date}T${booking.timeSlot.end}`);
+
+        return (
+          slotDate.getTime() === bookingDate.getTime() &&
+          ((slotStart >= bookingStart && slotStart < bookingEnd) ||
+           (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
+           (slotStart <= bookingStart && slotEnd >= bookingEnd))
+        );
       });
-
-      let availableSlots = [{ start: slot.startTime, end: slot.endTime }];
-
-      bookingsForDay.forEach(booking => {
-        availableSlots = subtractTimeSlot(availableSlots, booking.timeSlot);
-      });
-
-      availableSlots.forEach(avail => {
-        if (timeIsValid(avail.start, avail.end)) {
-          filteredAvailability.push({
-            day: slot.day,
-            date: formattedDate, // Add date field here
-            startTime: avail.start,
-            endTime: avail.end
-          });
-        }
-      });
-    }
+    });
 
     res.status(200).send({
       msg: "Available slots fetched successfully",
-      availability: filteredAvailability,
-      subjects: teacher.subjects,
-      teacherId: teacherId
-
+      availability: availableSlots,
+      subjects: teacher.subjects
     });
 
   } catch (error) {

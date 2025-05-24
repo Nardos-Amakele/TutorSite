@@ -416,78 +416,113 @@ const getBookings = async (req, res) => {
 
 const confirmBooking = async (req, res) => {
   try {
-    const teacherId = req.body.userId;
     const { bookingId } = req.params;
+    const { userId } = req.body;
 
-    // Verify booking exists and belongs to teacher
-    const booking = await BookingModel.findOne({ 
+    // Find the booking
+    const booking = await BookingModel.findOne({
       _id: bookingId,
-      teacher: teacherId,
-      status: "pending" // Can only confirm pending bookings
-    }).populate('teacher', 'email').populate('student', 'email');
+      teacher: userId,
+      status: 'pending'
+    }).populate('student', 'name email').populate('teacher', 'name email');
 
     if (!booking) {
-      return res.status(404).send({ 
-        msg: "Booking not found or not authorized to confirm" 
-      });
+      return res.status(404).json({ msg: 'Booking not found or already confirmed' });
     }
 
-    // Format the date and time for the meeting
-    const bookingDate = new Date(booking.date);
-    const [startHours, startMinutes] = booking.timeSlot.start.split(':');
-    const [endHours, endMinutes] = booking.timeSlot.end.split(':');
+    // Update booking status
+    booking.status = 'confirmed';
+    await booking.save();
 
-    const startDateTime = new Date(bookingDate);
-    startDateTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
+    // Create Google Meet meeting with retry logic
+    const maxRetries = 3;
+    let retryCount = 0;
+    let meetingLink = null;
 
-    const endDateTime = new Date(bookingDate);
-    endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+    while (retryCount < maxRetries) {
+      try {
+        // Format the date and time for the meeting
+        const bookingDate = new Date(booking.date);
+        const [startHours, startMinutes] = booking.timeSlot.start.split(':');
+        const [endHours, endMinutes] = booking.timeSlot.end.split(':');
 
-    // Create meeting link using booking time slot
-    const meeting = await createGoogleMeet({
-      summary: "Scheduled Class",
-      description: `Here is your next meeting for your ${booking.subject} session.`,
-      startTime: startDateTime,
-      endTime: endDateTime,
-      attendees: [booking.teacher.email, booking.student.email],
-    });
+        const startDateTime = new Date(bookingDate);
+        startDateTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
 
-    if (!meeting) {
-      return res.status(500).json({
-        message: "Error while creating meeting Link",
-      });
+        const endDateTime = new Date(bookingDate);
+        endDateTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+
+        const meeting = await createGoogleMeet({
+          summary: `Tutoring Session: ${booking.subject}`,
+          description: `Tutoring session for ${booking.subject} with ${booking.student.name}`,
+          startTime: startDateTime,
+          endTime: endDateTime,
+          attendees: [booking.teacher.email, booking.student.email]
+        });
+
+        if (meeting && meeting.hangoutLink) {
+          meetingLink = meeting.hangoutLink;
+          break; // If successful, break the retry loop
+        }
+      } catch (error) {
+        retryCount++;
+        console.error(`Attempt ${retryCount} failed:`, error.message);
+        
+        if (retryCount === maxRetries) {
+          console.error('Failed to create Google Meet meeting after all retries');
+          // Continue with the booking confirmation even if meeting creation fails
+          meetingLink = null;
+        } else {
+          // Wait for 2 seconds before retrying
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
     }
 
-    const meetingLink = meeting.hangoutLink;
-    const eventId = meeting.id; // Store the Google Calendar event ID
+    // Update booking with meeting link if available
+    if (meetingLink) {
+      booking.meetingLink = meetingLink;
+      await booking.save();
+    }
 
-    const confirmedBooking = await BookingModel.findByIdAndUpdate(
-      bookingId,
-      { 
-        status: "confirmed",
-        meetingLink: meetingLink,
-        eventId: eventId // Store the event ID
-      },
-      { new: true }
-    ).populate("student", "name email");
+    // Send notifications
+    try {
+      // Send email to student
+      await sendEmail({
+        to: booking.student.email,
+        subject: 'Booking Confirmed',
+        text: `Your booking for ${booking.subject} has been confirmed. ${meetingLink ? `Join the meeting at: ${meetingLink}` : ''}`
+      });
 
-    res.status(200).send({ 
-      msg: "Booking confirmed",
+      // Send email to teacher
+      await sendEmail({
+        to: booking.teacher.email,
+        subject: 'Booking Confirmed',
+        text: `You have confirmed a booking for ${booking.subject}. ${meetingLink ? `Join the meeting at: ${meetingLink}` : ''}`
+      });
+    } catch (emailError) {
+      console.error('Error sending confirmation emails:', emailError);
+      // Continue even if email sending fails
+    }
+
+    // Return updated booking
+    res.json({
+      msg: 'Booking confirmed successfully',
       booking: {
-        id: confirmedBooking._id,
-        subject: confirmedBooking.subject,
-        meetingLink: confirmedBooking.meetingLink,
-        date: confirmedBooking.date.toISOString(),
-        day: confirmedBooking.day,
-        timeSlot: confirmedBooking.timeSlot,
-        studentName: confirmedBooking.student?.name || "Unknown",
-        studentEmail: confirmedBooking.student?.email || "N/A",
-        status: confirmedBooking.status
+        id: booking._id,
+        subject: booking.subject,
+        date: booking.date.toISOString(),
+        timeSlot: booking.timeSlot,
+        studentName: booking.student?.name || "Unknown",
+        studentEmail: booking.student?.email || "N/A",
+        status: booking.status,
+        meetingLink
       }
     });
+
   } catch (error) {
-    console.error("Error in confirmBooking:", error);
-    res.status(500).send({ msg: error.message });
+    console.error('Error in confirmBooking:', error);
+    res.status(500).json({ msg: 'Error confirming booking' });
   }
 };
 
@@ -495,6 +530,12 @@ const declineBooking = async (req, res) => {
   try {
     const teacherId = req.body.userId;
     const { bookingId } = req.params;
+
+    if (!bookingId) {
+      return res.status(400).send({ 
+        msg: "Booking ID is required" 
+      });
+    }
 
     // Verify booking exists and belongs to teacher
     const booking = await BookingModel.findOne({ 
@@ -523,6 +564,12 @@ const declineBooking = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Error in declineBooking:", error);
+    if (error.name === 'CastError') {
+      return res.status(400).send({ 
+        msg: "Invalid booking ID format" 
+      });
+    }
     res.status(500).send({ msg: error.message });
   }
 };
@@ -657,15 +704,15 @@ const pendingBookings = async (req, res) => {
     .populate("student", "name email")
     .sort({ date: 1 }); // Sort by date ascending
 
-
     if (!bookings.length) {
       return res.status(404).send({ msg: "No pending bookings found" });
     }
 
     const formatted = bookings.map((booking) => ({
-      id: booking._id,
+      _id: booking._id.toString(), // Ensure _id is a string
+      id: booking._id.toString(), // Add id field for consistency
       subject: booking.subject,
-      date: booking.date.toISOString(), // Consistent date format
+      date: booking.date.toISOString(),
       timeSlot: {
         start: booking.timeSlot.start,
         end: booking.timeSlot.end

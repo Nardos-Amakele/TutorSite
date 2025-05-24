@@ -113,7 +113,7 @@ const registerUser = async (req, res) => {
 
       await teacher.save();
 
-      // Generate tokens
+
       const { accessToken, refreshToken } = generateTokens(teacher._id, teacher.role, teacher.email);
 
       // Set tokens
@@ -212,6 +212,7 @@ const loginUser = async (req, res) => {
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) return res.status(401).send({ msg: "Wrong credentials" });
+    
 
     const { accessToken, refreshToken } = generateTokens(user._id, user.role, user.email);
 
