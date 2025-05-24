@@ -109,7 +109,7 @@ const Resources = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:5000/admin/resources', {
+      const response = await fetch('http://localhost:3000/admin/resources', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -156,7 +156,7 @@ const Resources = () => {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`http://localhost:5000/admin/resources/${resourceId}`, {
+        const response = await fetch(`http://localhost:3000/admin/resources/${resourceId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

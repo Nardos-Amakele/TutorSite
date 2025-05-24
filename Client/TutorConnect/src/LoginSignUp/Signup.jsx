@@ -1,32 +1,36 @@
-// eslint-disable-next-line no-unused-vars
-import React, { useState, useContext } from "react";
-import { UserContext } from "../UserContext";
-import SignupImg from "./images/signup-image.jpg";
-import Logo from '../Landing/media/logo.png';
-import { styled } from "@mui/material";
+// Signup.jsx
+import { useState } from 'react';
+import { styled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
 import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
 import Link from '@mui/material/Link';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Link as LinkR } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
+import { Link as LinkR, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Logo from '../Landing/media/logo.png';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import SchoolIcon from '@mui/icons-material/School';
+import PersonIcon from '@mui/icons-material/Person';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+import IconButton from '@mui/material/IconButton';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 
-const Copyright = (props) => (
+const MySwal = withReactContent(Swal);
+
+function Copyright(props) {
+  return (
   <Typography variant="body2" color="text.secondary" align="center" {...props}>
     {'Copyright © '}
     <Link color="inherit">TutorHub</Link>{' '}
@@ -34,6 +38,7 @@ const Copyright = (props) => (
     {'.'}
   </Typography>
 );
+}
 
 const defaultTheme = createTheme({
   palette: {
@@ -45,132 +50,6 @@ const defaultTheme = createTheme({
     },
   },
 });
-
-const Signup = () => {
-  const [userType, setUserType] = useState('student');
-  const [subjects, setSubjects] = useState([]);
-  const [newSubject, setNewSubject] = useState('');
-  const [attachments, setAttachments] = useState([]);
-  const [newAttachment, setNewAttachment] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
-  const [password, setPassword] = useState(''); // Manage password state
-
-  const { setName, setId, setEmail, setIsVarified } = useContext(UserContext);
-  const navigate = useNavigate();
-  const MySwal = withReactContent(Swal);
-
-  const handleUserTypeChange = (event, newUserType) => {
-    if (newUserType !== null) {
-      setUserType(newUserType);
-    }
-  };
-
-  const handleAddSubject = (e) => {
-    e.preventDefault();
-    if (newSubject.trim() && subjects.length < 3) {
-      setSubjects([...subjects, newSubject.trim()]);
-      setNewSubject('');
-    }
-  };
-
-  const handleRemoveSubject = (index) => {
-    const updatedSubjects = [...subjects];
-    updatedSubjects.splice(index, 1);
-    setSubjects(updatedSubjects);
-  };
-
-  const handleAddAttachment = (e) => {
-    e.preventDefault();
-    if (newAttachment.trim()) {
-      setAttachments([...attachments, newAttachment.trim()]);
-      setNewAttachment('');
-    }
-  };
-
-  const handleRemoveAttachment = (index) => {
-    const updatedAttachments = [...attachments];
-    updatedAttachments.splice(index, 1);
-    setAttachments(updatedAttachments);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    
-    const userDetails = {
-      name: data.get('firstName') + ' ' + data.get('lastName'),
-      email: data.get('email'),
-      password: password, // Use controlled password state
-    };
-
-    if (userType === 'teacher') {
-      userDetails.subjects = subjects;
-      userDetails.attachments = attachments;
-      userDetails.hourlyRate = Number(hourlyRate);
-    }
-
-    const endpoint = userType === 'student'
-      ? 'http://localhost:5000/auth/register/student'
-      : 'http://localhost:5000/auth/register/teacher';
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(userDetails)
-      });
-
-      const res = await response.json();
-
-      if (res.msg === "Registration successful") {
-        setName(res.user.name);
-        setId(res.user._id);
-        setEmail(res.user.email);
-        setIsVarified(res.user.isVerified);
-
-        MySwal.fire({
-          title: res.msg,
-          position: 'center',
-          showConfirmButton: false,
-          timer: 1500,
-          didOpen: () => {
-            MySwal.showLoading();
-          },
-        }).then(() => {
-          return MySwal.fire({
-            title: <p>Redirecting to Login Page...</p>
-          });
-        });
-
-        setTimeout(() => {
-          navigate("/login");
-        }, 1500);
-      } else {
-        MySwal.fire({
-          title: res.msg,
-          position: 'center',
-          showConfirmButton: false,
-          timer: 1500,
-          icon: 'error',
-          didOpen: () => {
-            MySwal.showLoading();
-          },
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      MySwal.fire({
-        title: "An error occurred",
-        text: "Please try again later",
-        icon: 'error',
-        position: 'center',
-        showConfirmButton: false,
-        timer: 1500,
-      });
-    }
-  };
 
   const CustomBox = styled(Box)(({ theme }) => ({
     width: '60%',
@@ -187,235 +66,456 @@ const Signup = () => {
       width: '100vw',
       margin: 0,
       padding: 0,
-    }
+    },
   }));
 
-  const CustomBox1 = styled(Box)(({ theme }) => ({
+const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
+    width: '100%',
+    marginBottom: theme.spacing(3),
+    '& .MuiToggleButton-root': {
     flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    [theme.breakpoints.down('md')]: {
-      display: 'none'
-    }
-  }));
+        padding: theme.spacing(1.5),
+        border: `1px solid ${theme.palette.primary.main}`,
+        '&.Mui-selected': {
+            backgroundColor: theme.palette.primary.main,
+            color: 'white',
+            '&:hover': {
+                backgroundColor: theme.palette.primary.dark,
+            },
+        },
+    },
+}));
+
+const VisuallyHiddenInput = styled('input')({
+  clip: 'rect(0 0 0 0)',
+  clipPath: 'inset(50%)',
+  height: 1,
+  overflow: 'hidden',
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  whiteSpace: 'nowrap',
+  width: 1,
+});
+
+const Signup = () => {
+    const navigate = useNavigate();
+    const [isTeacher, setIsTeacher] = useState(false);
+    const [teacherStep, setTeacherStep] = useState(1);
+    const [studentData, setStudentData] = useState({ name: '', email: '', password: '' });
+    const [teacherData, setTeacherData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        subjects: [''],
+        availability: [{ day: '', date: '', startTime: '', endTime: '' }],
+        hourlyRate: '',
+    });
+    const [files, setFiles] = useState([]);
+
+    const handleStudentChange = (e) => {
+        setStudentData({ ...studentData, [e.target.name]: e.target.value });
+    };
+
+    const handleTeacherChange = (e) => {
+        setTeacherData({ ...teacherData, [e.target.name]: e.target.value });
+    };
+
+    const addSubject = () => {
+        setTeacherData({ ...teacherData, subjects: [...teacherData.subjects, ''] });
+    };
+
+    const handleSubjectChange = (index, e) => {
+        const newSubjects = [...teacherData.subjects];
+        newSubjects[index] = e.target.value;
+        setTeacherData({ ...teacherData, subjects: newSubjects });
+    };
+
+    const deleteSubject = (index) => {
+        const newSubjects = teacherData.subjects.filter((_, i) => i !== index);
+        setTeacherData({ ...teacherData, subjects: newSubjects });
+    };
+
+    const addAvailability = () => {
+        setTeacherData({ ...teacherData, availability: [...teacherData.availability, { day: '', date: '', startTime: '', endTime: '' }] });
+    };
+
+    const handleAvailabilityChange = (index, e) => {
+        const newAvailability = [...teacherData.availability];
+        newAvailability[index] = { ...newAvailability[index], [e.target.name]: e.target.value };
+        setTeacherData({ ...teacherData, availability: newAvailability });
+    };
+
+    const deleteAvailability = (index) => {
+        const newAvailability = teacherData.availability.filter((_, i) => i !== index);
+        setTeacherData({ ...teacherData, availability: newAvailability });
+    };
+
+    const handleFileChange = (event) => {
+        const selectedFiles = Array.from(event.target.files);
+        setFiles(selectedFiles);
+    };
+
+    const handleStudentSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:3000/auth/register/student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(studentData),
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                await MySwal.fire({
+                    title: 'Success!',
+                    text: 'Registration successful!',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+                navigate('/login');
+            } else {
+                throw new Error(data.msg || 'Registration failed');
+            }
+        } catch (error) {
+            MySwal.fire({
+                title: 'Error!',
+                text: error.message,
+                icon: 'error',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    };
+
+    const handleTeacherStep1 = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await fetch('http://localhost:3000/auth/register/teacher/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(teacherData),
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setTeacherStep(2);
+                await MySwal.fire({
+                    title: 'Step 1 Complete!',
+                    text: 'Please upload your documents.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            } else {
+                throw new Error(data.msg || 'Registration failed');
+            }
+        } catch (error) {
+            MySwal.fire({
+                title: 'Error!',
+                text: error.message,
+                icon: 'error',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    };
+
+    const handleTeacherStep2 = async (e) => {
+        e.preventDefault();
+        if (files.length === 0) {
+            MySwal.fire({
+                title: 'Error!',
+                text: 'Please upload at least one document',
+                icon: 'error',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+            return;
+        }
+
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('attachments', file);
+        });
+        formData.append('email', teacherData.email);
+
+        try {
+            const response = await fetch('http://localhost:3000/auth/register/teacher/files', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                await MySwal.fire({
+                    title: 'Success!',
+                    text: 'Registration completed successfully!',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+                navigate('/login');
+            } else {
+                throw new Error(data.msg || 'File upload failed');
+            }
+        } catch (error) {
+            MySwal.fire({
+                title: 'Error!',
+                text: error.message,
+                icon: 'error',
+                timer: 2000,
+                showConfirmButton: false,
+            });
+        }
+    };
 
   return (
     <CustomBox>
-      <Box sx={{ flex: 1 }}>
         <ThemeProvider theme={defaultTheme}>
           <Container component="main" maxWidth="xs">
             <CssBaseline />
-            <Box
-              sx={{
-                marginTop: 8,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
+                    <Box sx={{ marginTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <LinkR to='/'>
-                <img src={Logo} alt="Logo" style={{ width: '100px', height: 'auto' }} />
+                            <img src={Logo} alt="Logo" style={{ width: '100px', marginBottom: '20px' }} />
               </LinkR>
-
-              <Typography component="h1" variant="h5" sx={{ fontWeight: 600 }}>
-                Sign up
+                        <Typography component="h1" variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
+                            Sign Up
               </Typography>
-
-              <ToggleButtonGroup
-                color="primary"
-                value={userType}
+                        <Box component="form" onSubmit={isTeacher ? (teacherStep === 1 ? handleTeacherStep1 : handleTeacherStep2) : handleStudentSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
+                            {teacherStep === 1 && (
+                                <StyledToggleButtonGroup
+                                    value={isTeacher ? 'teacher' : 'student'}
                 exclusive
-                onChange={handleUserTypeChange}
-                aria-label="User type"
-                sx={{ mt: 2, mb: 2 }}
-              >
-                <ToggleButton value="student">Student</ToggleButton>
-                <ToggleButton value="teacher">Teacher</ToggleButton>
-              </ToggleButtonGroup>
+                                    onChange={(e, value) => setIsTeacher(value === 'teacher')}
+                                    aria-label="user type"
+                                >
+                                    <ToggleButton value="student" aria-label="student">
+                                        <PersonIcon sx={{ mr: 1 }} /> Student
+                                    </ToggleButton>
+                                    <ToggleButton value="teacher" aria-label="teacher">
+                                        <SchoolIcon sx={{ mr: 1 }} /> Teacher
+                                    </ToggleButton>
+                                </StyledToggleButtonGroup>
+                            )}
 
-              <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 1 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                            {isTeacher ? (
+                                teacherStep === 1 ? (
+                                    <>
                     <TextField
-                      autoComplete="given-name"
-                      name="firstName"
+                                            margin="normal"
                       required
                       fullWidth
-                      id="firstName"
-                      label="First Name"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
+                                            name="name"
+                                            label="Name"
+                                            onChange={handleTeacherChange}
+                                            autoComplete="name"
+                                        />
                     <TextField
+                                            margin="normal"
                       required
                       fullWidth
-                      id="lastName"
-                      label="Last Name"
-                      name="lastName"
-                      autoComplete="family-name"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      required
-                      fullWidth
-                      id="email"
-                      label="Email Address"
                       name="email"
+                                            label="Email"
+                                            onChange={handleTeacherChange}
                       autoComplete="email"
                     />
-                  </Grid>
-                  <Grid item xs={12}>
                     <TextField
+                                            margin="normal"
                       required
                       fullWidth
                       name="password"
                       label="Password"
                       type="password"
-                      id="password"
+                                            onChange={handleTeacherChange}
                       autoComplete="new-password"
-                      value={password} // Controlled input
-                      onChange={(e) => setPassword(e.target.value)} // Update password state
-                    />
-                  </Grid>
+                                        />
+                                        <TextField
+                                            margin="normal"
+                                            required
+                                            fullWidth
+                                            name="hourlyRate"
+                                            label="Hourly Rate"
+                                            type="number"
+                                            onChange={handleTeacherChange}
+                                        />
 
-                  {userType === 'teacher' && (
-                    <>
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle1" gutterBottom>
-                          Subjects (max 3)
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="h6" sx={{ mt: 3, mb: 2, color: 'primary.main' }}>Subjects</Typography>
+                                        {teacherData.subjects.map((subject, index) => (
+                                            <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                           <TextField
                             fullWidth
-                            value={newSubject}
-                            onChange={(e) => setNewSubject(e.target.value)}
-                            label="Add subject"
-                            disabled={subjects.length >= 3}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddSubject(e);
-                              }
-                            }}
+                                                    placeholder={`Subject ${index + 1}`}
+                                                    value={subject}
+                                                    onChange={(e) => handleSubjectChange(index, e)}
+                                                    sx={{ mr: 1 }}
                           />
                           <IconButton
-                            onClick={handleAddSubject}
-                            disabled={!newSubject.trim() || subjects.length >= 3}
+                                                    onClick={() => deleteSubject(index)}
+                                                    color="error"
+                                                    sx={{ mr: 1 }}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                                {index === teacherData.subjects.length - 1 && (
+                                                    <IconButton 
+                                                        onClick={addSubject}
                             color="primary"
                           >
                             <AddIcon />
                           </IconButton>
+                                                )}
                         </Box>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                          {subjects.map((subject, index) => (
-                            <Chip
-                              key={index}
-                              label={subject}
-                              onDelete={() => handleRemoveSubject(index)}
-                              deleteIcon={<DeleteIcon />}
-                            />
-                          ))}
-                        </Box>
-                      </Grid>
+                                        ))}
 
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle1" gutterBottom>
-                          Attachments
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="h6" sx={{ mt: 3, mb: 2, color: 'primary.main' }}>Availability</Typography>
+                                        {teacherData.availability.map((avail, index) => (
+                                            <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                                                <FormControl sx={{ flex: 1 }}>
+                                                    <InputLabel>Day</InputLabel>
+                                                    <Select
+                                                        name="day"
+                                                        value={avail.day}
+                                                        onChange={(e) => handleAvailabilityChange(index, e)}
+                                                        label="Day"
+                                                        required
+                                                    >
+                                                        <MenuItem value="Monday">Monday</MenuItem>
+                                                        <MenuItem value="Tuesday">Tuesday</MenuItem>
+                                                        <MenuItem value="Wednesday">Wednesday</MenuItem>
+                                                        <MenuItem value="Thursday">Thursday</MenuItem>
+                                                        <MenuItem value="Friday">Friday</MenuItem>
+                                                        <MenuItem value="Saturday">Saturday</MenuItem>
+                                                        <MenuItem value="Sunday">Sunday</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+                                                <TextField
+                                                    type="date"
+                                                    name="date"
+                                                    onChange={(e) => handleAvailabilityChange(index, e)}
+                                                    required
+                                                    sx={{ flex: 1 }}
+                                                />
+                                                <TextField
+                                                    type="time"
+                                                    name="startTime"
+                                                    onChange={(e) => handleAvailabilityChange(index, e)}
+                                                    required
+                                                    sx={{ flex: 1 }}
+                                                />
                           <TextField
-                            fullWidth
-                            value={newAttachment}
-                            onChange={(e) => setNewAttachment(e.target.value)}
-                            label="Add attachment (e.g., cv.pdf)"
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddAttachment(e);
-                              }
-                            }}
+                                                    type="time"
+                                                    name="endTime"
+                                                    onChange={(e) => handleAvailabilityChange(index, e)}
+                                                    required
+                                                    sx={{ flex: 1 }}
                           />
                           <IconButton
-                            onClick={handleAddAttachment}
-                            disabled={!newAttachment.trim()}
+                                                    onClick={() => deleteAvailability(index)}
+                                                    color="error"
+                                                    sx={{ mr: 1 }}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                                {index === teacherData.availability.length - 1 && (
+                                                    <IconButton 
+                                                        onClick={addAvailability}
                             color="primary"
                           >
                             <AddIcon />
                           </IconButton>
+                                                )}
                         </Box>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                          {attachments.map((attachment, index) => (
-                            <Chip
-                              key={index}
-                              label={attachment}
-                              onDelete={() => handleRemoveAttachment(index)}
-                              deleteIcon={<DeleteIcon />}
-                            />
-                          ))}
-                        </Box>
-                      </Grid>
-
-                      <Grid item xs={12}>
+                                        ))}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Typography variant="h6" sx={{ mb: 3, color: 'primary.main' }}>
+                                            Upload Your Documents
+                                        </Typography>
+                                        <Button
+                                            component="label"
+                                            variant="contained"
+                                            startIcon={<CloudUploadIcon />}
+                                            fullWidth
+                                            sx={{ mb: 2 }}
+                                        >
+                                            Upload Files
+                                            <VisuallyHiddenInput type="file" multiple onChange={handleFileChange} />
+                                        </Button>
+                                        {files.length > 0 && (
+                                            <Typography variant="body2" sx={{ mb: 2 }}>
+                                                {files.length} file(s) selected
+                                            </Typography>
+                                        )}
+                                    </>
+                                )
+                            ) : (
+                                <>
+                                    <TextField
+                                        margin="normal"
+                                        required
+                                        fullWidth
+                                        name="name"
+                                        label="Name"
+                                        onChange={handleStudentChange}
+                                        autoComplete="name"
+                                    />
+                                    <TextField
+                                        margin="normal"
+                                        required
+                                        fullWidth
+                                        name="email"
+                                        label="Email"
+                                        onChange={handleStudentChange}
+                                        autoComplete="email"
+                                    />
                         <TextField
+                                        margin="normal"
                           required
                           fullWidth
-                          type="number"
-                          label="Hourly Rate ($)"
-                          value={hourlyRate}
-                          onChange={(e) => setHourlyRate(e.target.value)}
-                          inputProps={{ min: 0 }}
-                        />
-                      </Grid>
+                                        name="password"
+                                        label="Password"
+                                        type="password"
+                                        onChange={handleStudentChange}
+                                        autoComplete="new-password"
+                                    />
                     </>
                   )}
-
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={<Checkbox value="allowExtraEmails" color="primary" required />}
-                      label="I agree all statements in Terms of service"
-                    />
-                  </Grid>
-                </Grid>
 
                 <Button
                   type="submit"
                   fullWidth
                   variant="contained"
-                  sx={{
-                    mt: 3,
-                    mb: 2,
-                    backgroundColor: 'primary.main',
-                    '&:hover': {
-                      backgroundColor: '#3e8e41',
-                    }
-                  }}
-                >
-                  Sign Up
+                                sx={{ mt: 3, mb: 2 }}
+                            >
+                                {isTeacher && teacherStep === 2 ? 'Complete Registration' : 'Register'}
                 </Button>
-
-                <Grid container justifyContent="center" sx={{ marginTop: '1rem' }}>
+                            <Grid container sx={{ marginTop: '1rem', justifyContent: 'center' }}>
                   <Grid item>
                     <LinkR to='/login'>
-                      <Link variant="body2" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-                        Already have an account? Log in
+                                        <Link variant="body2">
+                                            {"Already have an account? Log In"}
                       </Link>
                     </LinkR>
                   </Grid>
                 </Grid>
               </Box>
             </Box>
-            <Copyright sx={{ mt: 3, mb: 2 }} />
+                    <Copyright sx={{ mt: 10, mb: 2 }} />
           </Container>
         </ThemeProvider>
-      </Box>
-
-      <CustomBox1>
-        <figure>
-          <img src={SignupImg} alt="sign up image" />
-        </figure>
-      </CustomBox1>
     </CustomBox>
   );
 };

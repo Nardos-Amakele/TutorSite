@@ -10,9 +10,16 @@ import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Skeleton, Snackbar, Alert } from '@mui/material';
+import { Skeleton, Snackbar, Alert, IconButton } from '@mui/material';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 const MySwal = withReactContent(Swal);
 
@@ -38,7 +45,12 @@ interface Teacher {
   status: string;
   subjects: string[];
   lastActive: string;
-  documents: string[];
+  attachments: Array<{
+    filename: string;
+    originalName: string;
+    path: string;
+    mimeType: string;
+  }>;
 }
 
 const PendingTutors = () => {
@@ -49,6 +61,8 @@ const PendingTutors = () => {
     message: '',
     severity: 'success' as 'success' | 'error'
   });
+  const [selectedTutor, setSelectedTutor] = useState<Teacher | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
 
   // Fetch unverified teachers on component mount
   useEffect(() => {
@@ -66,7 +80,7 @@ const PendingTutors = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:5000/admin/unverified-teachers', {
+      const response = await fetch('http://localhost:3000/admin/unverified-teachers', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -78,6 +92,7 @@ const PendingTutors = () => {
       }
 
       const data = await response.json();
+      console.log('Unverified teachers response:', data); // Debug log
       setTutors(data.teachers || []);
     } catch (error) {
       console.error('Error fetching unverified teachers:', error);
@@ -113,7 +128,7 @@ const PendingTutors = () => {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`http://localhost:5000/admin/teachers/${tutorId}/verify`, {
+        const response = await fetch(`http://localhost:3000/admin/teachers/${tutorId}/verify`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -142,6 +157,23 @@ const PendingTutors = () => {
         severity: 'error'
       });
     }
+  };
+
+  const handleViewDocuments = (tutor: Teacher) => {
+    setSelectedTutor(tutor);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedTutor(null);
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType === 'application/pdf') {
+      return <PictureAsPdfIcon sx={{ color: '#f44336' }} />;
+    }
+    return <DescriptionIcon sx={{ color: '#2196f3' }} />;
   };
 
   return (
@@ -236,7 +268,7 @@ const PendingTutors = () => {
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                           <strong>Documents Submitted:</strong>
                         </Typography>
-                        <Typography variant="body1">{tutor.documents?.length || 0} files</Typography>
+                        <Typography variant="body1">{tutor.attachments?.length || 0} files</Typography>
                       </Box>
                     </Box>
                   </Box>
@@ -275,6 +307,7 @@ const PendingTutors = () => {
                     variant="outlined"
                     color="primary"
                     size="large"
+                    onClick={() => handleViewDocuments(tutor)}
                     sx={{
                       borderRadius: 2,
                       textTransform: 'none',
@@ -329,6 +362,72 @@ const PendingTutors = () => {
             </Typography>
           </Box>
         )}
+
+        <Dialog
+          open={openDialog}
+          onClose={handleCloseDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            bgcolor: 'primary.main',
+            color: 'white'
+          }}>
+            <Typography variant="h6">
+              {selectedTutor?.name}'s Documents
+            </Typography>
+            <IconButton onClick={handleCloseDialog} sx={{ color: 'white' }}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+            {selectedTutor?.attachments && selectedTutor.attachments.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {selectedTutor.attachments.map((doc, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      p: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  >
+                    {getFileIcon(doc.mimeType)}
+                    <Typography sx={{ ml: 2, flexGrow: 1 }}>
+                      {doc.originalName}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      onClick={() => window.open(`http://localhost:3000/api/uploads/${doc.filename}`, '_blank')}
+                    >
+                      View
+                    </Button>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                No documents available
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog} color="primary">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Snackbar
           open={snackbar.open}

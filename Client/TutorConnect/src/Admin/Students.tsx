@@ -103,7 +103,7 @@ const Students = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch('http://localhost:5000/admin/students', {
+            const response = await fetch('http://localhost:3000/admin/students', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -139,7 +139,7 @@ const Students = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch(`http://localhost:5000/admin/students/search?name=${searchTerm}`, {
+            const response = await fetch(`http://localhost:3000/admin/students/search?name=${searchTerm}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -187,7 +187,7 @@ const Students = () => {
                 }
 
                 const action = currentBannedStatus ? 'unban' : 'ban';
-                const response = await fetch(`http://localhost:5000/admin/users/student/${studentId}/${action}`, {
+                const response = await fetch(`http://localhost:3000/admin/users/student/${studentId}/${action}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,

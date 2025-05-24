@@ -75,7 +75,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/resources", {
+      const response = await fetch("http://localhost:3000/teacher/resources", {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -136,7 +136,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/resources/add", {
+      const response = await fetch("http://localhost:3000/teacher/resources/add", {
         method: 'POST',
         headers: {
           "Content-Type": "application/json",
@@ -190,7 +190,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:5000/teacher/resources/${resourceId}`, {
+      const response = await fetch(`http://localhost:3000/teacher/resources/${resourceId}`, {
         method: 'DELETE',
         headers: {
           "Content-Type": "application/json",

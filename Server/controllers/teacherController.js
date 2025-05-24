@@ -7,6 +7,7 @@ const { FileModel } = require("../models/FileModel");
 const { createGoogleMeet, deleteGoogleMeetEvent } = require("../services/calandarService");
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 const addAttachments = async (req, res) => {
   try {

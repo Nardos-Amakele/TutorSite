@@ -13,10 +13,17 @@ import BlockIcon from '@mui/icons-material/Block';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { TextField, InputAdornment, Skeleton, Snackbar, Alert } from '@mui/material';
+import { TextField, InputAdornment, Skeleton, Snackbar, Alert, IconButton } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 const MySwal = withReactContent(Swal);
 
@@ -70,6 +77,12 @@ interface Teacher {
     banned: boolean;
     lastActive: string;
     verified: boolean;
+    attachments: Array<{
+        filename: string;
+        originalName: string;
+        path: string;
+        mimeType: string;
+    }>;
 }
 
 const Teachers = () => {
@@ -81,6 +94,8 @@ const Teachers = () => {
         message: '',
         severity: 'success' as 'success' | 'error'
     });
+    const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+    const [openDialog, setOpenDialog] = useState(false);
 
     // Fetch teachers on component mount
     useEffect(() => {
@@ -111,7 +126,7 @@ const Teachers = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch('http://localhost:5000/admin/teachers', {
+            const response = await fetch('http://localhost:3000/admin/teachers', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -123,6 +138,7 @@ const Teachers = () => {
             }
 
             const data = await response.json();
+            console.log('Teachers response:', data); // Debug log
             setTeachers(data.teachers || []);
         } catch (error) {
             console.error('Error fetching teachers:', error);
@@ -147,7 +163,7 @@ const Teachers = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch(`http://localhost:5000/admin/teachers/search?name=${searchTerm}`, {
+            const response = await fetch(`http://localhost:3000/admin/teachers/search?name=${searchTerm}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -195,7 +211,7 @@ const Teachers = () => {
                 }
 
                 const action = currentBannedStatus ? 'unban' : 'ban';
-                const response = await fetch(`http://localhost:5000/admin/users/teacher/${teacherId}/${action}`, {
+                const response = await fetch(`http://localhost:3000/admin/users/teacher/${teacherId}/${action}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -230,6 +246,23 @@ const Teachers = () => {
                 severity: 'error'
             });
         }
+    };
+
+    const handleViewDocuments = (teacher: Teacher) => {
+        setSelectedTeacher(teacher);
+        setOpenDialog(true);
+    };
+
+    const handleCloseDialog = () => {
+        setOpenDialog(false);
+        setSelectedTeacher(null);
+    };
+
+    const getFileIcon = (mimeType: string) => {
+        if (mimeType === 'application/pdf') {
+            return <PictureAsPdfIcon sx={{ color: '#f44336' }} />;
+        }
+        return <DescriptionIcon sx={{ color: '#2196f3' }} />;
     };
 
     return (
@@ -385,6 +418,35 @@ const Teachers = () => {
                                         </Stack>
                                     </Box>
 
+                                    <Box sx={{ mb: 2, mt: 2 }}>
+                                        <Typography variant="body2" sx={{ mb: 1 }}>
+                                            <strong>Documents:</strong>
+                                        </Typography>
+                                        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                                            {teacher.attachments && teacher.attachments.length > 0 ? (
+                                                <>
+                                                    <Chip
+                                                        label={`${teacher.attachments.length} document(s)`}
+                                                        size="small"
+                                                        color="primary"
+                                                        variant="outlined"
+                                                        onClick={() => handleViewDocuments(teacher)}
+                                                        sx={{
+                                                            cursor: 'pointer',
+                                                            '&:hover': {
+                                                                bgcolor: 'action.hover'
+                                                            }
+                                                        }}
+                                                    />
+                                                </>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No documents
+                                                </Typography>
+                                            )}
+                                        </Stack>
+                                    </Box>
+
                                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
                                         <Button
                                             onClick={() => handleBanToggle(teacher._id, teacher.banned)}
@@ -434,6 +496,72 @@ const Teachers = () => {
                         </Box>
                     )}
                 </Box>
+
+                <Dialog
+                    open={openDialog}
+                    onClose={handleCloseDialog}
+                    maxWidth="md"
+                    fullWidth
+                >
+                    <DialogTitle sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        bgcolor: 'primary.main',
+                        color: 'white'
+                    }}>
+                        <Typography variant="h6">
+                            {selectedTeacher?.name}'s Documents
+                        </Typography>
+                        <IconButton onClick={handleCloseDialog} sx={{ color: 'white' }}>
+                            <CloseIcon />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent sx={{ mt: 2 }}>
+                        {selectedTeacher?.attachments && selectedTeacher.attachments.length > 0 ? (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {selectedTeacher.attachments.map((doc, index) => (
+                                    <Box
+                                        key={index}
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            p: 2,
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            borderRadius: 1,
+                                            '&:hover': {
+                                                bgcolor: 'action.hover'
+                                            }
+                                        }}
+                                    >
+                                        {getFileIcon(doc.mimeType)}
+                                        <Typography sx={{ ml: 2, flexGrow: 1 }}>
+                                            {doc.originalName}
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            size="small"
+                                            onClick={() => window.open(`http://localhost:3000/api/uploads/${doc.filename}`, '_blank')}
+                                        >
+                                            View
+                                        </Button>
+                                    </Box>
+                                ))}
+                            </Box>
+                        ) : (
+                            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                                No documents available
+                            </Typography>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseDialog} color="primary">
+                            Close
+                        </Button>
+                    </DialogActions>
+                </Dialog>
 
                 <Snackbar
                     open={snackbar.open}

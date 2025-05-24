@@ -126,7 +126,7 @@ const Dashboard = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:5000/admin/stats', {
+      const response = await fetch('http://localhost:3000/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

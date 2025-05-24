@@ -63,7 +63,7 @@ const fetchProfile = async () => {
 
     const token = tokenMatch.split('=')[1]; // Extract token from cookies
 
-    const response = await fetch("http://localhost:5000/student/profile", {
+    const response = await fetch("http://localhost:3000/student/profile", {
       method: 'GET',
       headers: {
         "Content-Type": "application/json",
@@ -121,7 +121,7 @@ const handleSave = async () => {
       dataToSend.password = editedData.password;
     }
 
-    const response = await fetch("http://localhost:5000/student/profile", {
+    const response = await fetch("http://localhost:3000/student/profile", {
       method: 'PATCH',
       headers: {
         "Content-Type": "application/json",

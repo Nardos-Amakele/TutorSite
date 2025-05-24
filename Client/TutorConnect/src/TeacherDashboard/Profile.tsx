@@ -24,6 +24,13 @@ import dayjs, { Dayjs } from 'dayjs';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface UserContextType {
   name: string;
@@ -40,7 +47,6 @@ interface ProfileUpdateRequest {
 
 interface Availability {
   day: string;
-  date: string;
   startTime: string;
   endTime: string;
 }
@@ -52,7 +58,12 @@ interface Profile {
   phone: string;
   subjects: string[];
   availability: Availability[];
-  attachments: any[];
+  attachments: Array<{
+    filename: string;
+    originalName: string;
+    path: string;
+    mimeType: string;
+  }>;
 }
 
 const Profile: React.FC = () => {
@@ -76,6 +87,7 @@ const Profile: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error'
   });
+  const [openDialog, setOpenDialog] = useState(false);
 
   // Fetch profile data
   const fetchProfile = async () => {
@@ -94,7 +106,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/profile", {
+      const response = await fetch("http://localhost:3000/teacher/profile", {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -104,6 +116,7 @@ const Profile: React.FC = () => {
       });
 
       const data = await response.json();
+      console.log('Profile response:', data); // Debug log
       
       if (response.ok) {
         setProfile(data.teacher);
@@ -167,7 +180,7 @@ const Profile: React.FC = () => {
         requestBody.password = editedData.password;
       }
 
-      const response = await fetch("http://localhost:5000/teacher/profile", {
+      const response = await fetch("http://localhost:3000/teacher/profile", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -223,7 +236,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/subjects/add", {
+      const response = await fetch("http://localhost:3000/teacher/subjects/add", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +288,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/subjects/remove", {
+      const response = await fetch("http://localhost:3000/teacher/subjects/remove", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -328,7 +341,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/availability/add", {
+      const response = await fetch("http://localhost:3000/teacher/availability/add", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -336,7 +349,7 @@ const Profile: React.FC = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          date: new Date().toISOString().split('T')[0], // Today's date
+          day: selectedDay,
           startTime: startTime.format('HH:mm'),
           endTime: endTime.format('HH:mm')
         })
@@ -386,7 +399,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/availability/remove", {
+      const response = await fetch("http://localhost:3000/teacher/availability/remove", {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -394,8 +407,7 @@ const Profile: React.FC = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          userId: profile?.id,
-          date: slot.date,
+          day: slot.day,
           startTime: slot.startTime,
           endTime: slot.endTime
         })
@@ -424,6 +436,21 @@ const Profile: React.FC = () => {
         severity: 'error'
       });
     }
+  };
+
+  const handleViewDocuments = () => {
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType === 'application/pdf') {
+      return <PictureAsPdfIcon sx={{ color: '#f44336' }} />;
+    }
+    return <DescriptionIcon sx={{ color: '#2196f3' }} />;
   };
 
   if (!profile) {
@@ -534,8 +561,8 @@ const Profile: React.FC = () => {
                 disabled={!isEditing}
               >
                 <option value=""></option>
-                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                  <option key={day} value={day}>{day.charAt(0).toUpperCase() + day.slice(1)}</option>
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                  <option key={day} value={day}>{day}</option>
                 ))}
               </TextField>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -577,7 +604,7 @@ const Profile: React.FC = () => {
               {profile.availability.map((slot, index) => (
                 <Chip 
                   key={index} 
-                  label={`${slot.day.charAt(0).toUpperCase() + slot.day.slice(1)}: ${slot.startTime} - ${slot.endTime}`} 
+                  label={`${slot.day}: ${slot.startTime} - ${slot.endTime}`} 
                   onDelete={isEditing ? () => handleRemoveAvailability(slot) : undefined} 
                   deleteIcon={isEditing ? <DeleteIcon /> : undefined} 
                   sx={{ m: 0.5 }} 
@@ -585,6 +612,96 @@ const Profile: React.FC = () => {
               ))}
             </Box>
           </Box>
+
+          <Box>
+            <Typography variant="subtitle1" sx={{ mb: 2 }}>Documents</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+              {profile.attachments && profile.attachments.length > 0 ? (
+                profile.attachments.map((doc, index) => (
+                  <Chip
+                    key={index}
+                    icon={getFileIcon(doc.mimeType)}
+                    label={doc.originalName}
+                    onClick={() => window.open(`http://localhost:3000/uploads/${doc.filename}`, '_blank')}
+                    sx={{ 
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  />
+                ))
+              ) : (
+                <Typography color="text.secondary">No documents uploaded</Typography>
+              )}
+            </Box>
+          </Box>
+
+          <Dialog
+            open={openDialog}
+            onClose={handleCloseDialog}
+            maxWidth="md"
+            fullWidth
+          >
+            <DialogTitle sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              bgcolor: 'primary.main',
+              color: 'white'
+            }}>
+              <Typography variant="h6">
+                My Documents
+              </Typography>
+              <IconButton onClick={handleCloseDialog} sx={{ color: 'white' }}>
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ mt: 2 }}>
+              {profile.attachments && profile.attachments.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {profile.attachments.map((doc, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        p: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                    >
+                      {getFileIcon(doc.mimeType)}
+                      <Typography sx={{ ml: 2, flexGrow: 1 }}>
+                        {doc.originalName}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => window.open(`http://localhost:3000/uploads/${doc.filename}`, '_blank')}
+                      >
+                        View
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+                  No documents available
+                </Typography>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseDialog} color="primary">
+                Close
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       </Paper>
 

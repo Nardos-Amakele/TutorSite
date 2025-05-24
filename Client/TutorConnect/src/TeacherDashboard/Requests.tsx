@@ -27,6 +27,7 @@ interface TimeSlot {
 
 interface Booking {
   _id: string;
+  id?: string;
   subject: string;
   date: string;
   timeSlot: TimeSlot;
@@ -111,7 +112,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:5000/teacher/bookings/pending", {
+      const response = await fetch("http://localhost:3000/teacher/bookings/pending", {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -124,14 +125,17 @@ const Requests = () => {
       
       if (response.ok) {
         if (data.bookings) {
-          setBookings(data.bookings);
+          const mappedBookings = data.bookings.map(booking => ({
+            ...booking,
+            _id: booking.id || booking._id
+          }));
+          setBookings(mappedBookings);
           setError(null);
         } else {
           setBookings([]);
-          setError(null); // No error, just no bookings
+          setError(null);
         }
       } else if (response.status === 404) {
-        // Handle 404 as a valid case - no pending bookings
         setBookings([]);
         setError(null);
       } else {
@@ -156,7 +160,16 @@ const Requests = () => {
   };
 
   // Confirm booking
-  const handleConfirm = async (bookingId) => {
+  const handleConfirm = async (bookingId: string) => {
+    if (!bookingId) {
+      setSnackbar({
+        open: true,
+        message: 'Invalid booking ID',
+        severity: 'error'
+      });
+      return;
+    }
+
     try {
       const cookieString = document.cookie;
       const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
@@ -172,7 +185,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:5000/teacher/bookings/${bookingId}/confirm`, {
+      const response = await fetch(`http://localhost:3000/teacher/bookings/${bookingId}/confirm`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -198,6 +211,7 @@ const Requests = () => {
         });
       }
     } catch (error) {
+      console.error('Error confirming booking:', error);
       setSnackbar({
         open: true,
         message: 'Error confirming booking',
@@ -207,7 +221,16 @@ const Requests = () => {
   };
 
   // Decline booking
-  const handleDecline = async (bookingId) => {
+  const handleDecline = async (bookingId: string) => {
+    if (!bookingId) {
+      setSnackbar({
+        open: true,
+        message: 'Invalid booking ID',
+        severity: 'error'
+      });
+      return;
+    }
+
     try {
       const cookieString = document.cookie;
       const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
@@ -223,7 +246,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:5000/teacher/bookings/${bookingId}/decline`, {
+      const response = await fetch(`http://localhost:3000/teacher/bookings/${bookingId}/decline`, {
         method: 'DELETE',
         headers: {
           "Content-Type": "application/json",
@@ -249,6 +272,7 @@ const Requests = () => {
         });
       }
     } catch (error) {
+      console.error('Error declining booking:', error);
       setSnackbar({
         open: true,
         message: 'Error declining booking',
@@ -425,7 +449,18 @@ const Requests = () => {
                           <Button 
                             variant="contained" 
                             color="primary" 
-                            onClick={() => handleConfirm(booking._id)}
+                            onClick={() => {
+                              const bookingId = booking._id || booking.id;
+                              if (bookingId) {
+                                handleConfirm(bookingId);
+                              } else {
+                                setSnackbar({
+                                  open: true,
+                                  message: 'Invalid booking ID',
+                                  severity: 'error'
+                                });
+                              }
+                            }}
                             startIcon={<CheckCircleIcon sx={{ fontSize: '1.2rem' }} />}
                             sx={{
                               boxShadow: '0 3px 6px rgba(46, 125, 50, 0.3)',
@@ -442,7 +477,18 @@ const Requests = () => {
                           <Button 
                             variant="outlined" 
                             color="error"
-                            onClick={() => handleDecline(booking._id)}
+                            onClick={() => {
+                              const bookingId = booking._id || booking.id;
+                              if (bookingId) {
+                                handleDecline(bookingId);
+                              } else {
+                                setSnackbar({
+                                  open: true,
+                                  message: 'Invalid booking ID',
+                                  severity: 'error'
+                                });
+                              }
+                            }}
                             startIcon={<CancelIcon sx={{ fontSize: '1.2rem' }} />}
                             sx={{
                               border: '2px solid',

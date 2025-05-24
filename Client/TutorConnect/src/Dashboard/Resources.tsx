@@ -62,7 +62,7 @@ const Resources = () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch("http://localhost:5000/student/resources", {
+    const response = await fetch("http://localhost:3000/student/resources", {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies
@@ -196,7 +196,7 @@ const Resources = () => {
           // Display Filtered Resources
           filteredResources.map(resource => (
             <Card
-              key={resource._id}
+              key={resource.uploadedBy}
               sx={{
                 borderRadius: 2,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)',

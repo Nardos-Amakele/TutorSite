@@ -7,18 +7,12 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
@@ -26,13 +20,15 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormLabel from '@mui/material/FormLabel';
+import CircularProgress from '@mui/material/CircularProgress';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Paper from '@mui/material/Paper';
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [startTime, setStartTime] = useState(null);
-  const [endTime, setEndTime] = useState(null);
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState(null);
@@ -42,6 +38,10 @@ const Teachers = () => {
     message: '',
     severity: 'error'
   });
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState('');
 
   // Fetch all teachers on component mount
   useEffect(() => {
@@ -78,7 +78,7 @@ const fetchTeachers = async () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch("http://localhost:5000/student/teachers", {
+    const response = await fetch("http://localhost:3000/student/teachers", {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies
@@ -127,7 +127,7 @@ const fetchTeachers = async () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch(`http://localhost:5000/student/teachers/search?name=${searchQuery}`, {
+    const response = await fetch(`http://localhost:3000/student/teachers/search?name=${searchQuery}`, {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies
@@ -159,23 +159,125 @@ const fetchTeachers = async () => {
   }
 };
 
-  const handleClickOpen = (teacher) => {
+  const handleClickOpen = async (teacher) => {
     setSelectedTeacher(teacher);
     setOpen(true);
+    setLoading(true);
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch(`http://localhost:3000/student/teachers/${teacher._id}/slots`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setAvailableSlots(data.availability);
+        setSelectedSubject(data.subjects[0] || ''); // Set first subject as default
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch available slots',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error fetching available slots',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
     setOpen(false);
+    setSelectedSlot(null);
+    setSelectedSubject('');
+    setAvailableSlots([]);
   };
 
-  const handleSubjectChange = (subject) => {
-    setSelectedSubjects(prev =>
-      prev.includes(subject) ? prev.filter(s => s !== subject) : [...prev, subject]
-    );
+  const handleBooking = async () => {
+    if (!selectedSlot || !selectedSubject) {
+      setSnackbar({
+        open: true,
+        message: 'Please select a time slot and subject',
+        severity: 'error'
+      });
+      return;
+    }
+
+    try {
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch("http://localhost:3000/student/bookings", {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          teacherId: selectedTeacher._id,
+          subject: selectedSubject,
+          date: selectedSlot.date,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime
+        }),
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: 'Booking successful!',
+          severity: 'success'
+        });
+        handleClose();
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to book session',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error booking session:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error booking session',
+        severity: 'error'
+      });
+    }
   };
 
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  };
+
+  const formatTime = (time) => {
+    // Convert 24h to 12h format
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
   };
 
   return (
@@ -338,70 +440,92 @@ const fetchTeachers = async () => {
           Book a Session with {selectedTeacher?.name}
         </DialogTitle>
         <DialogContent sx={{ py: 3 }}>
-          <Box component="form" sx={{ display: 'flex', flexDirection: 'column' }}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Select Date
-                </Typography>
-                <DatePicker
-                  value={selectedDate}
-                  onChange={(newValue) => setSelectedDate(newValue)}
-                  sx={{ width: '100%' }}
-                />
-              </FormControl>
-
-              <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
-                <FormControl fullWidth>
-                  <Typography variant="subtitle1" gutterBottom>
-                    Start Time
-                  </Typography>
-                  <TimePicker
-                    value={startTime}
-                    onChange={(newValue) => setStartTime(newValue)}
-                    sx={{ width: '100%' }}
-                  />
-                </FormControl>
-                <FormControl fullWidth>
-                  <Typography variant="subtitle1" gutterBottom>
-                    End Time
-                  </Typography>
-                  <TimePicker
-                    value={endTime}
-                    onChange={(newValue) => setEndTime(newValue)}
-                    sx={{ width: '100%' }}
-                  />
-                </FormControl>
-              </Box>
-
-              <FormControl fullWidth>
-                <Typography variant="subtitle1" gutterBottom>
-                  Select Subjects
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">Select Subject</FormLabel>
+                <RadioGroup
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                >
                   {selectedTeacher?.subjects?.map((subject, index) => (
                     <FormControlLabel
                       key={index}
-                      control={
-                        <Checkbox
-                          color="primary"
-                          checked={selectedSubjects.includes(subject)}
-                          onChange={() => handleSubjectChange(subject)}
-                        />
-                      }
+                      value={subject}
+                      control={<Radio />}
                       label={subject}
                     />
                   ))}
+                </RadioGroup>
+              </FormControl>
+
+              <FormControl component="fieldset">
+                <FormLabel component="legend">Available Time Slots</FormLabel>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {availableSlots.map((slot, index) => {
+                    const isSelected = selectedSlot && 
+                      selectedSlot.date === slot.date && 
+                      selectedSlot.startTime === slot.startTime;
+                    
+                    return (
+                      <Paper
+                        key={index}
+                        onClick={() => setSelectedSlot(slot)}
+                        sx={{
+                          p: 2,
+                          cursor: 'pointer',
+                          border: '2px solid',
+                          borderColor: isSelected ? 'primary.main' : 'transparent',
+                          backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.08)' : 'transparent',
+                          transition: 'all 0.2s ease-in-out',
+                          '&:hover': {
+                            backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.12)' : 'rgba(0, 0, 0, 0.04)',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              fontWeight: 'bold',
+                              color: isSelected ? 'primary.main' : 'text.primary'
+                            }}
+                          >
+                            {formatDate(slot.date)}
+                          </Typography>
+                          <Typography 
+                            variant="body1"
+                            sx={{ 
+                              color: isSelected ? 'primary.main' : 'text.secondary'
+                            }}
+                          >
+                            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    );
+                  })}
                 </Box>
               </FormControl>
-            </LocalizationProvider>
-          </Box>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={handleClose} variant="outlined" sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}>
             Cancel
           </Button>
-          <Button onClick={handleClose} variant="contained" sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}>
+          <Button 
+            onClick={handleBooking} 
+            variant="contained" 
+            sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+            disabled={!selectedSlot || !selectedSubject}
+          >
             Confirm Booking
           </Button>
         </DialogActions>

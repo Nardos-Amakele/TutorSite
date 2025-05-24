@@ -54,7 +54,7 @@ const Booked = () => {
 
     const token = tokenMatch.split('=')[1];
 
-    const response = await fetch("http://localhost:5000/student/bookings", {
+    const response = await fetch("http://localhost:3000/student/bookings", {
       method: 'GET', // Ensure you specify the method
       headers: {
         "Content-Type": "application/json",
@@ -111,7 +111,7 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:5000/student/bookings/${selectedBooking.id}/cancel`, {
+      const response = await fetch(`http://localhost:3000/student/bookings/${selectedBooking.id}/cancel`, {
         method: 'PATCH',
         headers: {
           "content-type": "application/json",
@@ -163,7 +163,7 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:5000/student/bookings/${selectedBooking.id}/complete`, {
+      const response = await fetch(`http://localhost:3000/student/bookings/${selectedBooking.id}/complete`, {
         method: 'PATCH',
         headers: {
           "content-type": "application/json",
@@ -203,14 +203,27 @@ const Booked = () => {
   };
 
   // Format time display
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatTime = (timeString) => {
+    if (!timeString) return 'Invalid time';
+    
+    // If it's a full date string (includes date and time)
+    if (timeString.includes('T')) {
+      const date = new Date(timeString);
+      return date.toLocaleString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // If it's just a time string (HH:mm format)
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
   };
 
   // Fetch bookings on component mount
@@ -296,12 +309,12 @@ const Booked = () => {
                   {booking.teacherEmail}
                 </Typography>
                 <Typography variant="body1">
-                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Starts:</Box>
-                  {formatTime(booking.timeSlot.start)}
+                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Day:</Box>
+                  {booking.day}
                 </Typography>
                 <Typography variant="body1">
-                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Ends:</Box>
-                  {formatTime(booking.timeSlot.end)}
+                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Time:</Box>
+                  {formatTime(booking.timeSlot.start)} - {formatTime(booking.timeSlot.end)}
                 </Typography>
               </Stack>
 
