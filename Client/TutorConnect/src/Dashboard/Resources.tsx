@@ -19,6 +19,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // Define the Resource type
 interface Resource {
@@ -61,7 +62,7 @@ const Resources = () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch("http://localhost:3000/student/resources", {
+    const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/resources`, {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies

@@ -26,6 +26,7 @@ import FormLabel from '@mui/material/FormLabel';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Paper from '@mui/material/Paper';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const Teachers = () => {
   const [open, setOpen] = useState(false);
@@ -78,7 +79,7 @@ const fetchTeachers = async () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch("http://localhost:3000/student/teachers", {
+    const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/teachers`, {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies
@@ -127,7 +128,7 @@ const fetchTeachers = async () => {
 
     const token = tokenMatch.split('=')[1]; // New line to extract token
 
-    const response = await fetch(`http://localhost:3000/student/teachers/search?name=${searchQuery}`, {
+    const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/teachers/search?name=${searchQuery}`, {
       headers: {
         "Content-Type": "application/json", // Added content type
         "Authorization": `Bearer ${token}` // Updated to use the token from cookies
@@ -168,7 +169,7 @@ const fetchTeachers = async () => {
       const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/student/teachers/${teacher._id}/slots`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/teachers/${teacher._id}/slots`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -221,7 +222,7 @@ const fetchTeachers = async () => {
       const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:3000/student/bookings", {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/bookings`, {
         method: 'POST',
         headers: {
           "Authorization": `Bearer ${token}`,

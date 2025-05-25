@@ -19,6 +19,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import EmailIcon from '@mui/icons-material/Email';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface TimeSlot {
   start: string;
@@ -112,7 +113,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:3000/teacher/bookings/pending", {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings/pending`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -185,7 +186,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/teacher/bookings/${bookingId}/confirm`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings/${bookingId}/confirm`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -246,7 +247,7 @@ const Requests = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/teacher/bookings/${bookingId}/decline`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings/${bookingId}/decline`, {
         method: 'DELETE',
         headers: {
           "Content-Type": "application/json",

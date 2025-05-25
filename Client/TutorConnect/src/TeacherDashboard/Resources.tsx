@@ -26,6 +26,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface Resource {
   id: string;
@@ -74,7 +75,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:3000/teacher/resources", {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/resources`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -135,7 +136,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:3000/teacher/resources/add", {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/resources/add`, {
         method: 'POST',
         headers: {
           "Content-Type": "application/json",
@@ -189,7 +190,7 @@ const Resources = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/teacher/resources/${resourceId}`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/resources/${resourceId}`, {
         method: 'DELETE',
         headers: {
           "Content-Type": "application/json",

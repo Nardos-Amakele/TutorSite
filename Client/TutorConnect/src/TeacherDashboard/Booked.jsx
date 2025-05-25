@@ -21,6 +21,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const Booked = () => {
   const [openCancelModal, setOpenCancelModal] = React.useState(false);
@@ -54,7 +55,7 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch("http://localhost:3000/teacher/bookings", {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +112,7 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/teacher/bookings/${selectedBooking.id}/cancel`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings/${selectedBooking.id}/cancel`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -164,7 +165,7 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`http://localhost:3000/teacher/bookings/${selectedBooking.id}/complete`, {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/bookings/${selectedBooking.id}/complete`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",

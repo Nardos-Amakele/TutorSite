@@ -27,6 +27,7 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import FormHelperText from '@mui/material/FormHelperText';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const MySwal = withReactContent(Swal);
 
@@ -270,7 +271,7 @@ const Signup = () => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:3000/auth/register/student', {
+            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/auth/register/student`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -310,7 +311,7 @@ const Signup = () => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:3000/auth/register/teacher/data', {
+            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/auth/register/teacher/data`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -369,7 +370,7 @@ const Signup = () => {
         formData.append('userId', teacherData.id);
 
         try {
-            const response = await fetch('http://localhost:3000/teacher/attachments/add', {
+            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/attachments/add`, {
                 method: 'POST',
                 body: formData,
                 credentials: 'include',

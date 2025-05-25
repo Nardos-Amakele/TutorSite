@@ -24,6 +24,7 @@ import DialogActions from '@mui/material/DialogActions';
 import CloseIcon from '@mui/icons-material/Close';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const MySwal = withReactContent(Swal);
 
@@ -126,7 +127,7 @@ const Teachers = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch('http://localhost:3000/admin/teachers', {
+            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/teachers`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -163,7 +164,7 @@ const Teachers = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch(`http://localhost:3000/admin/teachers/search?name=${searchTerm}`, {
+            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/teachers/search?name=${searchTerm}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -211,7 +212,7 @@ const Teachers = () => {
                 }
 
                 const action = currentBannedStatus ? 'unban' : 'ban';
-                const response = await fetch(`http://localhost:3000/admin/users/teacher/${teacherId}/${action}`, {
+                const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/users/teacher/${teacherId}/${action}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -544,7 +545,7 @@ const Teachers = () => {
                                             variant="contained"
                                             color="primary"
                                             size="small"
-                                            onClick={() => window.open(`http://localhost:3000/api/uploads/${doc.filename}`, '_blank')}
+                                            onClick={() => window.open(`${NEXT_PUBLIC_API_BASE_URL}/api/uploads/${doc.filename}`, '_blank')}
                                         >
                                             View
                                         </Button>

@@ -20,6 +20,7 @@ import DialogActions from '@mui/material/DialogActions';
 import CloseIcon from '@mui/icons-material/Close';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
+const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const MySwal = withReactContent(Swal);
 
@@ -80,7 +81,7 @@ const PendingTutors = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('http://localhost:3000/admin/unverified-teachers', {
+      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/unverified-teachers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -128,7 +129,7 @@ const PendingTutors = () => {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`http://localhost:3000/admin/teachers/${tutorId}/verify`, {
+        const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/teachers/${tutorId}/verify`, {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -409,7 +410,7 @@ const PendingTutors = () => {
                       variant="contained"
                       color="primary"
                       size="small"
-                      onClick={() => window.open(`http://localhost:3000/api/uploads/${doc.filename}`, '_blank')}
+                      onClick={() => window.open(`${NEXT_PUBLIC_API_BASE_URL}/api/uploads/${doc.filename}`, '_blank')}
                     >
                       View
                     </Button>
