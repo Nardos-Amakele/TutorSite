@@ -332,7 +332,8 @@ const getBookings = async (req, res) => {
         },
         teacherName: booking.teacher?.name || "Unknown",
         teacherEmail: booking.teacher?.email || "N/A",
-        status: booking.status
+        status: booking.status,
+        meetingLink: booking.meetingLink
       }))
     });
   } catch (error) {

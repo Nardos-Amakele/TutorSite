@@ -402,7 +402,8 @@ const getBookings = async (req, res) => {
           },
           studentName: booking.student?.name || "Unknown",
           studentEmail: booking.student?.email || "N/A",
-          status: booking.status
+          status: booking.status,
+          meetingLink: booking.meetingLink
         }))
       });
     } catch (error) {
@@ -639,7 +640,7 @@ const completeBooking = async (req, res) => {
     const booking = await BookingModel.findOne({ 
       _id: bookingId,
       teacher: teacherId,
-      status: "confirmed" // Can only complete confirmed bookings
+      status: "confirmed" 
     });
 
     if (!booking) {
