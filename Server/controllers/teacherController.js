@@ -315,7 +315,6 @@ const getProfile = async (req, res) => {
 
       if (!teacher) {
         return res.status(404).send({ msg: "Teacher not found" });
-
       }
       res.status(200).send({
         msg: "Profile fetched successfully",
@@ -326,7 +325,8 @@ const getProfile = async (req, res) => {
           phone: teacher.phone,
           subjects: teacher.subjects,
           availability: teacher.availability,
-          attachments: teacher.attachments
+          attachments: teacher.attachments,
+          verified: teacher.verified
         }
       });
     } catch (error) {   
