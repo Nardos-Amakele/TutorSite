@@ -31,6 +31,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import CloseIcon from '@mui/icons-material/Close';
+import VerifiedIcon from '@mui/icons-material/Verified';
 
 interface UserContextType {
   name: string;
@@ -60,6 +61,7 @@ interface Profile {
   phone: string;
   subjects: string[];
   availability: Availability[];
+  verified: boolean;
   attachments: Array<{
     filename: string;
     originalName: string;
@@ -77,6 +79,7 @@ const Profile: React.FC = () => {
     isActive: boolean;
   } | null>(null);
   const [showTrialDialog, setShowTrialDialog] = useState(false);
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [editedData, setEditedData] = useState({
     name: '',
     email: '',
@@ -136,6 +139,11 @@ const Profile: React.FC = () => {
           subjects: data.teacher.subjects || [],
           availability: data.teacher.availability || []
         });
+        
+        // Show verification dialog if teacher is not verified
+        if (!data.teacher.verified) {
+          setShowVerificationDialog(true);
+        }
       } else {
         setSnackbar({
           open: true,
@@ -628,6 +636,58 @@ const Profile: React.FC = () => {
     );
   };
 
+  // Add this new component for the verification dialog
+  const VerificationDialog = () => (
+    <Dialog
+      open={showVerificationDialog}
+      onClose={() => setShowVerificationDialog(false)}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        bgcolor: 'warning.main',
+        color: 'white'
+      }}>
+        <Typography variant="h6">
+          Get Verified
+        </Typography>
+        <IconButton onClick={() => setShowVerificationDialog(false)} sx={{ color: 'white' }}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ mt: 2 }}>
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <Typography variant="h6" color="warning.main" gutterBottom>
+            Your account is not verified
+          </Typography>
+          <Typography variant="body1" paragraph>
+            To get verified and access all features of TutorConnect, please contact the administrator to set up your subscription payment.
+          </Typography>
+          <Typography variant="body1" paragraph>
+            Contact us at ethio.tutorhub@gmail.com
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Verification includes:
+          </Typography>
+          <Box sx={{ mt: 2, textAlign: 'left' }}>
+            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              • Full access to student bookings
+            </Typography>
+            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              • Priority in search results
+            </Typography>
+            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+              • Verified badge on your profile
+            </Typography>
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (!profile) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -641,7 +701,12 @@ const Profile: React.FC = () => {
       <Paper sx={{ padding: 4, borderRadius: '16px', boxShadow: 4 }}>
         <TrialStatusBanner />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>My Profile</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>My Profile</Typography>
+            {profile?.verified && (
+              <VerifiedIcon sx={{ color: 'primary.main', fontSize: '2rem' }} />
+            )}
+          </Box>
           {!isEditing ? (
             <IconButton onClick={handleEdit} color="primary"><EditIcon /></IconButton>
           ) : (
@@ -913,6 +978,7 @@ const Profile: React.FC = () => {
         </Alert>
       </Snackbar>
 
+      <VerificationDialog />
       <TrialStatusDialog />
     </Container>
   );
