@@ -16,7 +16,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { Link as LinkR, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function Copyright(props) {
   return (
@@ -78,14 +78,19 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
+      console.log('Attempting to login with API URL:', VITE_API_BASE_URL); // Debug log
+      const response = await fetch(`${VITE_API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(userDetails),
-        credentials: 'include' // Ensure credentials are included
+        credentials: 'include'
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const res = await response.json();
       console.log("Backend Response:", res); // Debug log

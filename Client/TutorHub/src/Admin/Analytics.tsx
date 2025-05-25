@@ -20,7 +20,7 @@ import {
   TrendingUp as GrowthIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Create green theme
 const theme = createTheme({
@@ -127,7 +127,7 @@ const Dashboard = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/stats`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

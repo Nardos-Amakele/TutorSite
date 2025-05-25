@@ -21,7 +21,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import ScheduleIcon from '@mui/icons-material/Schedule';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const Booked = () => {
   const [openCancelModal, setOpenCancelModal] = React.useState(false);
@@ -37,73 +37,63 @@ const Booked = () => {
   });
 
   // Fetch bookings
- const fetchBookings = async () => {
-  try {
-    setLoading(true);
-    const cookieString = document.cookie;
-    const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const cookieString = document.cookie;
+      const tokenMatch = cookieString.split('; ').find(row => row.startsWith('JAA_access_token='));
 
-    if (!tokenMatch) {
-      setError('Authentication token not found');
-      setSnackbar({
-        open: true,
-        message: 'Please log in to view your bookings',
-        severity: 'error'
-      });
-      return;
-    }
-
-    const token = tokenMatch.split('=')[1];
-
-    const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/bookings`, {
-      method: 'GET',
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      credentials: 'include'
-    });
-
-    const data = await response.json();
-    
-    if (response.ok) {
-      if (data.bookings) {
-        // Sort bookings to show confirmed ones at the top
-        const sortedBookings = [...data.bookings].sort((a, b) => {
-          // If a is confirmed and b is not, a comes first
-          if (a.status === 'confirmed' && b.status !== 'confirmed') return -1;
-          // If b is confirmed and a is not, b comes first
-          if (b.status === 'confirmed' && a.status !== 'confirmed') return 1;
-          // If both are confirmed or both are not confirmed, sort by date
-          return new Date(a.date) - new Date(b.date);
+      if (!tokenMatch) {
+        setError('Authentication token not found');
+        setSnackbar({
+          open: true,
+          message: 'Please log in to view your bookings',
+          severity: 'error'
         });
-        console.log('Sorted bookings:', sortedBookings);
-        setBookings(sortedBookings);
-        setError(null);
-      } else {
-        setBookings([]);
-        setError('No bookings data received');
+        return;
       }
-    } else {
-      setError(data.msg || 'Failed to fetch bookings');
+
+      const token = tokenMatch.split('=')[1];
+
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/bookings`, {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        if (data.bookings) {
+          setBookings(data.bookings);
+          setError(null);
+        } else {
+          setBookings([]);
+          setError('No bookings data received');
+        }
+      } else {
+        setError(data.msg || 'Failed to fetch bookings');
+        setSnackbar({
+          open: true,
+          message: data.msg || 'Failed to fetch bookings',
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      setError('Error fetching bookings');
       setSnackbar({
         open: true,
-        message: data.msg || 'Failed to fetch bookings',
+        message: 'Error fetching bookings',
         severity: 'error'
       });
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching bookings:', error);
-    setError('Error fetching bookings');
-    setSnackbar({
-      open: true,
-      message: 'Error fetching bookings',
-      severity: 'error'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Cancel booking
   const handleCancelConfirm = async () => {
@@ -122,13 +112,14 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/bookings/${selectedBooking.id}/cancel`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/bookings/${selectedBooking.id}/cancel`, {
         method: 'PATCH',
         headers: {
-          "content-type": "application/json",
-          "authorization": `Bearer ${token}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify({ userId: selectedBooking.teacherId })
       });
 
       const data = await response.json();
@@ -174,13 +165,14 @@ const Booked = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/bookings/${selectedBooking.id}/complete`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/bookings/${selectedBooking.id}/complete`, {
         method: 'PATCH',
         headers: {
-          "content-type": "application/json",
-          "authorization": `Bearer ${token}`
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify({ userId: selectedBooking.teacherId })
       });
 
       const data = await response.json();
@@ -237,25 +229,12 @@ const Booked = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Format date display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Invalid date';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  // Handle join class
+  // Add this function near the top of the component
   const handleJoinClass = (meetingLink) => {
-    console.log('Meeting link:', meetingLink);
     if (!meetingLink) {
       setSnackbar({
         open: true,
-        message: 'Meeting link not available yet. Please check your email or contact the tutor.',
+        message: 'No meeting link available',
         severity: 'error'
       });
       return;
@@ -316,14 +295,14 @@ const Booked = () => {
                   height: 56,
                   fontSize: '1.5rem'
                 }}>
-                  {booking.teacherName.charAt(0)}
+                  {booking.studentName.charAt(0)}
                 </Avatar>
                 <Box>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {booking.teacherName}
+                    {booking.studentName}
                   </Typography>
                   <Typography variant="subtitle1" color="text.secondary">
-                    {booking.subject} Tutor
+                    {booking.subject} Student
                   </Typography>
                 </Box>
                 <Chip
@@ -343,11 +322,11 @@ const Booked = () => {
               <Stack spacing={2} sx={{ mb: 3 }}>
                 <Typography variant="body1">
                   <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Email:</Box>
-                  {booking.teacherEmail}
+                  {booking.studentEmail}
                 </Typography>
                 <Typography variant="body1">
-                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Date:</Box>
-                  {formatDate(booking.date)}
+                  <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Day:</Box>
+                  {booking.day}
                 </Typography>
                 <Typography variant="body1">
                   <Box component="span" sx={{ fontWeight: 600, mr: 1 }}>Time:</Box>
@@ -360,10 +339,7 @@ const Booked = () => {
                   <Button
                     variant="contained"
                     startIcon={<VideocamIcon />}
-                    onClick={() => {
-                      console.log('Booking data:', booking);
-                      handleJoinClass(booking.meetingLink || booking.meeting_url || booking.meetingUrl);
-                    }}
+                    onClick={() => handleJoinClass(booking.meetingLink)}
                     sx={{
                       px: 4,
                       backgroundColor: '#4CAF50',
@@ -447,7 +423,7 @@ const Booked = () => {
           </DialogTitle>
           <DialogContent sx={{ px: 0 }}>
             <DialogContentText sx={{ color: '#616161', fontSize: '1rem' }}>
-              This action cannot be undone. The tutor will be notified of the cancellation.
+              This action cannot be undone. The student will be notified of the cancellation.
             </DialogContentText>
           </DialogContent>
           <DialogActions sx={{ 

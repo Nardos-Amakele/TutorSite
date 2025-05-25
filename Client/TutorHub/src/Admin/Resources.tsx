@@ -24,7 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const MySwal = withReactContent(Swal);
 
@@ -108,7 +108,7 @@ const Resources = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/resources`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/admin/resources`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -155,7 +155,7 @@ const Resources = () => {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/resources/${resourceId}`, {
+        const response = await fetch(`${VITE_API_BASE_URL}/admin/resources/${resourceId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

@@ -14,7 +14,7 @@ import { Chip, TextField, InputAdornment, Stack, Skeleton, Snackbar, Alert } fro
 import SearchIcon from '@mui/icons-material/Search';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const MySwal = withReactContent(Swal);
 
@@ -104,7 +104,7 @@ const Students = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/students`, {
+            const response = await fetch(`${VITE_API_BASE_URL}/admin/students`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -140,7 +140,7 @@ const Students = () => {
                 throw new Error('No authentication token found');
             }
 
-            const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/students/search?name=${searchTerm}`, {
+            const response = await fetch(`${VITE_API_BASE_URL}/admin/students/search?name=${searchTerm}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -188,7 +188,7 @@ const Students = () => {
                 }
 
                 const action = currentBannedStatus ? 'unban' : 'ban';
-                const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/admin/users/student/${studentId}/${action}`, {
+                const response = await fetch(`${VITE_API_BASE_URL}/admin/users/student/${studentId}/${action}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,

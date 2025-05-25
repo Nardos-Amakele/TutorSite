@@ -32,7 +32,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import CloseIcon from '@mui/icons-material/Close';
 import VerifiedIcon from '@mui/icons-material/Verified';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface UserContextType {
   name: string;
@@ -118,7 +118,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/profile`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/profile`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -174,7 +174,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/account-info`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/account-info`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -242,7 +242,7 @@ const Profile: React.FC = () => {
         requestBody.password = editedData.password;
       }
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/profile`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/profile`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -301,7 +301,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/subjects/add`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/subjects/add`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -353,7 +353,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/subjects/remove`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/subjects/remove`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -418,7 +418,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}teacher/availability/add`, {
+      const response = await fetch(`${VITE_API_BASE_URL}teacher/availability/add`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -476,7 +476,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/teacher/availability/remove`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/teacher/availability/remove`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
@@ -881,7 +881,7 @@ const Profile: React.FC = () => {
                     key={index}
                     icon={getFileIcon(doc.mimeType)}
                     label={doc.originalName}
-                    onClick={() => window.open(`${NEXT_PUBLIC_API_BASE_URL}/uploads/${doc.filename}`, '_blank')}
+                    onClick={() => window.open(`${VITE_API_BASE_URL}/uploads/${doc.filename}`, '_blank')}
                     sx={{ 
                       cursor: 'pointer',
                       '&:hover': {
@@ -942,7 +942,7 @@ const Profile: React.FC = () => {
                         variant="contained"
                         color="primary"
                         size="small"
-                        onClick={() => window.open(`${NEXT_PUBLIC_API_BASE_URL}/uploads/${doc.filename}`, '_blank')}
+                        onClick={() => window.open(`${VITE_API_BASE_URL}/uploads/${doc.filename}`, '_blank')}
                       >
                         View
                       </Button>

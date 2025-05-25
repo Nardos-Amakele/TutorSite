@@ -16,7 +16,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { UserContext } from '../UserContext';
-const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface UserContextType {
   name: string;
@@ -79,7 +79,7 @@ const Profile: React.FC = () => {
 
       const token = tokenMatch.split('=')[1];
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/profile`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/student/profile`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
@@ -139,7 +139,7 @@ const Profile: React.FC = () => {
         requestBody.password = editedData.password;
       }
 
-      const response = await fetch(`${NEXT_PUBLIC_API_BASE_URL}/student/profile`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/student/profile`, {
         method: 'PATCH',
         headers: {
           "Content-Type": "application/json",
