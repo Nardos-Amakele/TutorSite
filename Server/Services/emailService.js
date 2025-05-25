@@ -1,26 +1,26 @@
-// File: services/emailService.js
 
-const sgMail = require("@sendgrid/mail");
-require("dotenv").config();
+const sgMail = require('@sendgrid/mail');
+require('dotenv').config();
 
 sgMail.setApiKey(process.env.SENDGRID_KEY);
 
-const sendOtpEmail = async (email) => {
-  const otp = Math.floor(100000 + Math.random() * 900000);
-  const msg = {
-    to: email,
-    from: "aamirfarooqbhatt@gmail.com", // replace with verified sender
-    subject: "Your OTP for Password Change",
-    html: `
-      <h2>Hello User</h2>
-      <h3>Your OTP: <strong>${otp}</strong></h3>
-      <p>This OTP will expire in 5 minutes. Do not share it with anyone.</p>
-      <p>Thank you,<br/>Team Tutor Connect</p>
-    `,
-  };
+const sendEmail = async ({ to, subject, text, html }) => {
+    try {
+        const msg = {
+            to,
+            from: process.env.SENDGRID_FROM_EMAIL, 
+            subject,
+            text,
+            html: html || text
+        };
 
-  await sgMail.send(msg);
-  return otp;
+        const response = await sgMail.send(msg);
+        console.log('Email sent:', response[0].statusCode);
+        return response;
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw error;
+    }
 };
 
-module.exports = { sendOtpEmail };
+module.exports = { sendEmail };

@@ -1,9 +1,11 @@
 const Redis = require("ioredis");
+require('dotenv').config();
 
 const client = new Redis({
-  port: 6379,
-  host: "127.0.0.1"
-  // password: "your-redis-password" // if needed
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  password: process.env.REDIS_PASSWORD,
+  tls: process.env.REDIS_TLS === 'true' ? {} : undefined
 });
 
 client.on("connect", () => {

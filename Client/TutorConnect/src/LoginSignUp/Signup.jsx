@@ -322,6 +322,11 @@ const Signup = () => {
             const data = await response.json();
 
             if (response.ok) {
+
+                setTeacherData(prev => ({
+                ...prev,
+                id: data.teacher._id  
+                }));
                 setTeacherStep(2);
                 await MySwal.fire({
                     title: 'Step 1 Complete!',
@@ -361,10 +366,10 @@ const Signup = () => {
         files.forEach(file => {
             formData.append('attachments', file);
         });
-        formData.append('email', teacherData.email);
+        formData.append('userId', teacherData.id);
 
         try {
-            const response = await fetch('http://localhost:3000/auth/register/teacher/files', {
+            const response = await fetch('http://localhost:3000/teacher/attachments/add', {
                 method: 'POST',
                 body: formData,
                 credentials: 'include',

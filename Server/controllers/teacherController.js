@@ -1,5 +1,3 @@
-// File: controllers/teacherController.js
-
 const { TeacherModel } = require("../models/TeacherModel");
 const { BookingModel } = require("../models/BookingModel");
 const {ResourceModel} = require('../models/ResourceModel');
@@ -15,10 +13,12 @@ const addAttachments = async (req, res) => {
     const teacherId = req.body.userId;
 
     if (!req.files || req.files.length === 0) {
+      console.log("No files uploaded");
       return res.status(400).json({ msg: "No files uploaded" });
     }
 
     const savedFiles = await Promise.all(
+      
       req.files.map(file => {
         const newFile = new FileModel({
           uploadedBy: teacherId,
@@ -32,7 +32,11 @@ const addAttachments = async (req, res) => {
       })
     );
 
+    console.log("Files saved:", savedFiles);
+
     const attachmentIds = savedFiles.map(file => file._id);
+
+    console.log("Attachment IDs:", attachmentIds);
 
     const updatedTeacher = await TeacherModel.findByIdAndUpdate(
       teacherId,
@@ -40,7 +44,9 @@ const addAttachments = async (req, res) => {
       { new: true }
     ).populate('attachments');
 
-    res.status(200).json({ msg: 'Attachments added successfully', teacher: updatedTeacher });
+    console.log("Updated teacher:", updatedTeacher);
+
+    res.status(200).json({ msg: 'Attachments added successfully'});
   } catch (error) {
     res.status(500).json({ msg: error.message });
   }

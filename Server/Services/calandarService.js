@@ -11,9 +11,22 @@ async function createGoogleMeet({ summary, description, startTime, endTime, atte
       throw new Error("Missing required fields for meeting creation");
     }
 
+    // Check if OAuth2 client is properly initialized
+    if (!oAuth2Client.credentials || !oAuth2Client.credentials.refresh_token) {
+      console.error("OAuth2 client not properly initialized. Missing refresh token.");
+      throw new Error("Google Calendar authentication not properly configured");
+    }
+
     // Convert time strings to full ISO timestamps
     const startDateTime = new Date(startTime).toISOString();
     const endDateTime = new Date(endTime).toISOString();
+
+    console.log("Creating Google Meet with parameters:", {
+      summary,
+      startDateTime,
+      endDateTime,
+      attendees
+    });
 
     const event = {
       summary,
@@ -35,14 +48,17 @@ async function createGoogleMeet({ summary, description, startTime, endTime, atte
       },
     };
 
+    console.log("Attempting to create calendar event...");
     const response = await calendar.events.insert({
       calendarId: "primary",
       resource: event,
       conferenceDataVersion: 1,
     });
 
+    console.log("Calendar API response:", response.data);
+
     if (!response.data || !response.data.hangoutLink) {
-      throw new Error("Failed to create Google Meet meeting");
+      throw new Error("Failed to create Google Meet meeting: No hangout link in response");
     }
 
     return {
@@ -53,7 +69,21 @@ async function createGoogleMeet({ summary, description, startTime, endTime, atte
       attendees: response.data.attendees
     };
   } catch (error) {
-    console.error("Error creating Google Meet meeting:", error);
+    console.error("Error creating Google Meet meeting:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    // Check for specific error types
+    if (error.code === 'ECONNREFUSED' || error.code === 'EAI_AGAIN') {
+      throw new Error("Network error: Unable to connect to Google Calendar API. Please check your internet connection.");
+    } else if (error.code === 401) {
+      throw new Error("Authentication error: Google Calendar credentials are invalid or expired.");
+    } else if (error.code === 403) {
+      throw new Error("Permission error: Insufficient permissions to create Google Meet meetings.");
+    }
+    
     throw new Error(`Failed to create Google Meet meeting: ${error.message}`);
   }
 }

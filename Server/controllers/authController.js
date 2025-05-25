@@ -14,75 +14,20 @@ const registerUser = async (req, res) => {
     const { email, password, name, availability, subjects, hourlyRate } = req.body;
     const { role } = req.params;
     const isTeacherDataRoute = req.path === '/register/teacher/data';
-    const isTeacherFilesRoute = req.path === '/register/teacher/files';
 
-    // Handle file upload for teacher
-    if (isTeacherFilesRoute) {
-      if (!email) {
-        return res.status(400).send({ msg: "Email is required for file upload" });
-      }
-
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).send({ msg: "Teacher registration requires attachments (certificates/qualifications)" });
-      }
-
-      // Find the teacher by email
-      const teacher = await TeacherModel.findOne({ email });
-      if (!teacher) {
-        return res.status(404).send({ msg: "Teacher not found. Please register your data first." });
-      }
-
-      try {
-        // Save each uploaded file into DB
-        const savedFiles = await Promise.all(
-          req.files.map(file => {
-            const newFile = new FileModel({
-              filename: file.filename,
-              originalName: file.originalname,
-              path: file.path,
-              mimeType: file.mimetype,
-              size: file.size
-            });
-            return newFile.save();
-          })
-        );
-
-        // Update teacher with file IDs
-        teacher.attachments = savedFiles.map(f => f._id);
-        await teacher.save();
-
-        return res.status(200).send({
-          msg: "Teacher registration completed successfully",
-          user: { ...teacher._doc, password: undefined }
-        });
-      } catch (error) {
-        // Clean up uploaded files if database save fails
-        if (req.files) {
-          await Promise.all(req.files.map(file => 
-            fs.unlink(file.path).catch(console.error)
-          ));
-        }
-        throw new Error("Failed to save uploaded files");
-      }
-    }
-
-    // Validate required fields for other routes
     if (!email || !password || !name) {
       return res.status(400).send({ msg: "Email, password, and name are required" });
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).send({ msg: "Invalid email format" });
     }
 
-    // Validate password strength
     if (password.length < 8) {
       return res.status(400).send({ msg: "Password must be at least 8 characters long" });
     }
 
-    // Check if user already exists
     const existingStudent = await StudentModel.findOne({ email });
     const existingTeacher = await TeacherModel.findOne({ email });
     const existingAdmin = await AdminModel.findOne({ email });
@@ -91,7 +36,6 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "User already exists" });
     }
 
-    // Handle teacher registration
     if (isTeacherDataRoute) {
       if (!availability || !subjects || !hourlyRate) {
         return res.status(400).send({ 
@@ -99,7 +43,6 @@ const registerUser = async (req, res) => {
         });
       }
 
-      // Create teacher without attachments
       const hashedPassword = await bcrypt.hash(password, 10);
       const teacher = new TeacherModel({
         email,
@@ -121,27 +64,25 @@ const registerUser = async (req, res) => {
         httpOnly: true, 
         secure: process.env.NODE_ENV === "production", 
         sameSite: "strict",
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000 
       });
       res.cookie("refreshToken", refreshToken, { 
         httpOnly: true, 
         secure: process.env.NODE_ENV === "production", 
         sameSite: "strict",
-        maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
+        maxAge: 4 * 24 * 60 * 60 * 1000 
       });
 
       return res.status(201).send({
-        msg: "Teacher data registered successfully. Please upload your documents.",
+        msg: "Teacher registration successful",
         user: { ...teacher._doc, password: undefined },
         token: accessToken
       });
     }
 
-    // Handle student and admin registration
     const hashedPassword = await bcrypt.hash(password, 10);
     let user = null;
 
-    // Create user based on role
     if (role === "student") {
       user = new StudentModel({ 
         email, 
@@ -160,14 +101,12 @@ const registerUser = async (req, res) => {
       return res.status(400).send({ msg: "Invalid role specified" });
     }
 
-    // Save the user
     if (!user) {
       return res.status(400).send({ msg: "Failed to create user" });
     }
 
     await user.save();
 
-    // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user._id, user.role, user.email);
 
     // Set tokens
@@ -175,13 +114,13 @@ const registerUser = async (req, res) => {
       httpOnly: true, 
       secure: process.env.NODE_ENV === "production", 
       sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000 
     });
     res.cookie("refreshToken", refreshToken, { 
       httpOnly: true, 
       secure: process.env.NODE_ENV === "production", 
       sameSite: "strict",
-      maxAge: 4 * 24 * 60 * 60 * 1000 // 4 days
+      maxAge: 4 * 24 * 60 * 60 * 1000 
     });
 
     res.status(201).send({

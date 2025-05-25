@@ -2,7 +2,6 @@ const jwt = require("jsonwebtoken");
 const { client } = require("./redisClient");
 require("dotenv").config();
 
-// Validate required environment variables
 const requiredEnvVars = [
   'JWT_ACCESS_TOKEN_SECRET_KEY',
   'JWT_REFRESH_TOKEN_SECRET_KEY'
@@ -22,8 +21,6 @@ const tokenOptions = {
 };
 
 const generateTokens = (userId, role, email) => {
-  console.log('=== Token Generation ===');
-  console.log('Input parameters:', { userId, role, email }); // Debug log
 
   const accessTokenPayload = { 
     userId, 
@@ -31,8 +28,6 @@ const generateTokens = (userId, role, email) => {
     email,
     type: 'access'
   };
-
-  console.log('Access token payload before signing:', JSON.stringify(accessTokenPayload, null, 2));
 
   const accessToken = jwt.sign(
     accessTokenPayload,
@@ -72,7 +67,7 @@ const verifyAccessToken = async (token) => {
     // Check blacklist
     const isBlacklisted = await client.get(token);
     if (isBlacklisted) {
-      console.log('Token is blacklisted');
+
       return null;
     }
 
@@ -85,17 +80,13 @@ const verifyAccessToken = async (token) => {
 
 
     if (payload.type !== 'access') {
-      console.log('Invalid token type:', payload.type);
+
       return null;
     }
     
     return payload;
   } catch (error) {
-    console.error('Access token verification failed:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+
     return null;
   }
 };
@@ -119,7 +110,7 @@ const verifyRefreshToken = async (refreshToken) => {
       throw new Error('Invalid token type: expected refresh token');
     }
 
-    console.log('Decoded refresh token:', decoded);
+
 
     // Generate new access token using refresh token's data
     const newAccessToken = jwt.sign(
@@ -142,11 +133,9 @@ const verifyRefreshToken = async (refreshToken) => {
       process.env.JWT_ACCESS_TOKEN_SECRET_KEY,
       tokenOptions
     );
-    console.log('Decoded new access token:', decodedNewAccessToken);
 
     return newAccessToken;
   } catch (error) {
-    console.error('Refresh token verification error:', error.message);
     if (error.name === 'JsonWebTokenError') {
       throw new Error('Invalid refresh token');
     } else if (error.name === 'TokenExpiredError') {
@@ -167,7 +156,6 @@ const blacklistTokens = async (accessToken, refreshToken) => {
 
     // Check if tokens were successfully decoded
     if (!accessTokenPayload || !accessTokenPayload.exp) {
-      console.warn("Invalid or missing access token");
     } else {
       const accessTokenExp = accessTokenPayload.exp - Math.floor(Date.now() / 1000);
       if (accessTokenExp > MIN_EXPIRATION) {
@@ -186,7 +174,6 @@ const blacklistTokens = async (accessToken, refreshToken) => {
       }
     }
   } catch (error) {
-    console.error('Error blacklisting tokens:', error);
     throw new Error('Failed to blacklist tokens: ' + error.message);
   }
 };
