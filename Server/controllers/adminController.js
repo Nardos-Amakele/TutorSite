@@ -3,7 +3,38 @@ const { TeacherModel } = require("../models/TeacherModel");
 const { BookingModel } = require("../models/BookingModel");
 const { ResourceModel } = require("../models/ResourceModel"); 
 const { AdminModel } = require("../models/AdminModel"); 
-const bcrypt = require("bcrypt");
+// const bcrypt = require("bcrypt");
+
+const calculateVerificationDaysRemaining = (createdAt) => {
+    const verificationPeriod = 7; // 7 days verification period
+    const createdDate = new Date(createdAt);
+    const currentDate = new Date();
+    
+    // Calculate days passed
+    const daysPassed = Math.floor((currentDate - createdDate) / (1000 * 60 * 60 * 24));
+    
+    // Calculate days remaining
+    const daysRemaining = Math.max(0, verificationPeriod - daysPassed);
+    
+    return {
+        daysRemaining,
+        isExpired: daysRemaining === 0
+    };
+};
+
+const transformFileData = (file) => {
+  // Create a URL-friendly path for the file
+  const fileUrl = `/uploads/${file.filename}`;
+  
+  return {
+    id: file._id,
+    name: file.originalName,
+    type: file.mimeType,
+    size: file.size,
+    url: fileUrl,
+    uploadedAt: file.createdAt
+  };
+};
 
 const getAdmins = async (req, res) => {
   try { 
@@ -17,8 +48,17 @@ const getAdmins = async (req, res) => {
 
 const getAllTeachers = async (req, res) => {
   try {
-    const teachers = await TeacherModel.find({verified: true}, "-password, -__v");
-    res.status(200).send({ teachers });
+    const teachers = await TeacherModel.find({}, "-password, -__v")
+      .populate('attachments');
+    
+    // Add verification status and transform attachments for each teacher
+    const teachersWithVerification = teachers.map(teacher => ({
+      ...teacher.toObject(),
+      attachments: teacher.attachments.map(transformFileData),
+      verificationStatus: calculateVerificationDaysRemaining(teacher.createdAt)
+    }));
+
+    res.status(200).send({ teachers: teachersWithVerification });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
@@ -35,8 +75,18 @@ const searchTeachers = async (req, res) => {
       if (banned !== undefined) query.banned = banned === "true";
       if (verified !== undefined) query.verified = verified === "true";
 
-      const teachers = await TeacherModel.find(query).select("-password -__v");
-      res.status(200).send({ teachers });
+      const teachers = await TeacherModel.find(query)
+        .select("-password -__v")
+        .populate('attachments');
+      
+      // Add verification status and transform attachments for each teacher
+      const teachersWithVerification = teachers.map(teacher => ({
+        ...teacher.toObject(),
+        attachments: teacher.attachments.map(transformFileData),
+        verificationStatus: calculateVerificationDaysRemaining(teacher.createdAt)
+      }));
+
+      res.status(200).send({ teachers: teachersWithVerification });
     } catch (error) {
       res.status(500).send({ msg: error.message });
     }
@@ -100,8 +150,17 @@ const unbanUserById = async (req, res) => {
 
 const getUnverifiedTeachers = async (req, res) => {
   try {
-    const teachers = await TeacherModel.find({ verified: false }, "-password -__v");
-    res.status(200).send({ teachers });
+    const teachers = await TeacherModel.find({ verified: false }, "-password -__v")
+      .populate('attachments');
+    
+    // Add verification status and transform attachments for each teacher
+    const teachersWithVerification = teachers.map(teacher => ({
+      ...teacher.toObject(),
+      attachments: teacher.attachments.map(transformFileData),
+      verificationStatus: calculateVerificationDaysRemaining(teacher.createdAt)
+    }));
+
+    res.status(200).send({ teachers: teachersWithVerification });
   } catch (error) {
     res.status(500).send({ msg: error.message });
   }
@@ -209,6 +268,57 @@ const viewAllBookings = async (req, res) => {
   };
   
 
+const deleteUser = async (req, res) => {
+  try {
+    const { userId, role } = req.params;
+    
+    // Validate role
+    if (!["student", "teacher"].includes(role)) {
+      return res.status(400).send({ msg: "Invalid role. Must be 'student' or 'teacher'" });
+    }
+
+    // Choose the correct model based on role
+    const Model = role === "student" ? StudentModel : "teacher" ? TeacherModel : AdminModel;
+
+    // First check if user exists
+    const user = await Model.findById(userId);
+    if (!user) {
+      return res.status(404).send({ msg: `${role} not found` });
+    }
+
+    // If it's a teacher, also delete their resources and bookings
+    if (role === "teacher") {
+      // Delete teacher's resources
+      await ResourceModel.deleteMany({ uploadedBy: userId });
+      await FileModel.deleteMany({ uploadedBy: userId });
+      
+      // Update bookings to cancelled status
+      await BookingModel.updateMany(
+        { teacher: userId, status: { $in: ["pending", "confirmed"] } },
+        { status: "cancelled" }
+      );
+    }
+
+    // Delete the user
+    await Model.findByIdAndDelete(userId);
+
+    res.status(200).send({ 
+      msg: `${role} deleted successfully`,
+      deletedUser: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error("Error in deleteUser:", error);
+    res.status(500).send({ 
+      msg: "Error deleting user",
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getAdmins,
   getAllTeachers,
@@ -223,5 +333,6 @@ module.exports = {
   getUserStats,
   viewAllBookings,
   filterBookings,
-  getUnverifiedTeachers
+  getUnverifiedTeachers,
+  deleteUser
 };

@@ -14,7 +14,8 @@ const {
   getUserStats,
   viewAllBookings,
   filterBookings,
-  getUnverifiedTeachers
+  getUnverifiedTeachers,
+  deleteUser
 } = require("../controllers/adminController");
 const { getResources } = require("../controllers/studentController");
 
@@ -38,6 +39,7 @@ adminRouter.get("/students/search",  searchStudents); // checked!
 
 adminRouter.patch("/users/:role/:userId/ban",  banUserById); // checked!
 adminRouter.patch("/users/:role/:userId/unban",  unbanUserById); // checked!
+adminRouter.delete("/users/:userId", deleteUser); // Delete user route
 
 adminRouter.get("/resources",  getResources);
 adminRouter.delete("/resources/:userId",  removeResource);

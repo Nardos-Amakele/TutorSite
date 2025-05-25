@@ -26,6 +26,7 @@ const TeacherRouter = express.Router();
 
 // Profile management
 // TeacherRouter.post("/register", registerTeacher);  // No auth needed for registration
+
 TeacherRouter.get("/profile", auth, isTeacher, getProfile)
 TeacherRouter.patch("/profile", auth, isTeacher, updateProfile); //checked!!
 

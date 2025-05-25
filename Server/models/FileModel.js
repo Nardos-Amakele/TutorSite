@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const fileSchema = new mongoose.Schema({
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   filename: String,
   originalName: String,
   path: String,

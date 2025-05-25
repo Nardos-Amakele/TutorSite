@@ -5,6 +5,7 @@ const { BookingModel } = require("../models/BookingModel");
 const {ResourceModel} = require('../models/ResourceModel');
 const { FileModel } = require("../models/FileModel");
 const { createGoogleMeet, deleteGoogleMeetEvent } = require("../services/calandarService");
+const { sendEmail } = require("../services/emailService");
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -20,6 +21,7 @@ const addAttachments = async (req, res) => {
     const savedFiles = await Promise.all(
       req.files.map(file => {
         const newFile = new FileModel({
+          uploadedBy: teacherId,
           filename: file.filename,
           originalName: file.originalname,
           path: file.path,
@@ -305,6 +307,37 @@ const removeSubject = async (req, res) => {
 };
   
 
+const calculateVerificationDaysRemaining = (createdAt) => {
+    const verificationPeriod = 7; // 7 days verification period
+    const createdDate = new Date(createdAt);
+    const currentDate = new Date();
+    
+    // Calculate days passed
+    const daysPassed = Math.floor((currentDate - createdDate) / (1000 * 60 * 60 * 24));
+    
+    // Calculate days remaining
+    const daysRemaining = Math.max(0, verificationPeriod - daysPassed);
+    
+    return {
+        daysRemaining,
+        isExpired: daysRemaining === 0
+    };
+};
+
+const transformFileData = (file) => {
+  // Create a URL-friendly path for the file
+  const fileUrl = `/uploads/${file.filename}`;
+  
+  return {
+    id: file._id,
+    name: file.originalName,
+    type: file.mimeType,
+    size: file.size,
+    url: fileUrl,
+    uploadedAt: file.createdAt
+  };
+};
+
 const getProfile = async (req, res) => {
     try {
       const teacherId = req.body.userId;
@@ -312,11 +345,18 @@ const getProfile = async (req, res) => {
         return res.status(400).send({ msg: "Teacher ID is required" });
       }
       const teacher = await TeacherModel.findById(teacherId)
+        .populate('attachments'); // Populate the attachments
 
       if (!teacher) {
         return res.status(404).send({ msg: "Teacher not found" });
-
       }
+
+      // Calculate verification status
+      const verificationStatus = calculateVerificationDaysRemaining(teacher.createdAt);
+
+      // Transform attachments data
+      const transformedAttachments = teacher.attachments.map(transformFileData);
+
       res.status(200).send({
         msg: "Profile fetched successfully",
         teacher: {
@@ -326,7 +366,12 @@ const getProfile = async (req, res) => {
           phone: teacher.phone,
           subjects: teacher.subjects,
           availability: teacher.availability,
-          attachments: teacher.attachments
+          attachments: transformedAttachments,
+          isVerified: teacher.isVerified,
+          verificationStatus: {
+            daysRemaining: verificationStatus.daysRemaining,
+            isExpired: verificationStatus.isExpired
+          }
         }
       });
     } catch (error) {   
@@ -337,7 +382,7 @@ const getProfile = async (req, res) => {
         details: "Please ensure the teacher ID is valid and exists in the database"
       });
     }
-  };
+};
 
 
 const updateProfile = async (req, res) => {
@@ -432,18 +477,12 @@ const confirmBooking = async (req, res) => {
       return res.status(404).json({ msg: 'Booking not found or already confirmed' });
     }
 
-    // Update booking status
-    booking.status = 'confirmed';
-    await booking.save();
-
-    // Create Google Meet meeting with retry logic
     const maxRetries = 3;
     let retryCount = 0;
     let meetingLink = null;
 
     while (retryCount < maxRetries) {
       try {
-        // Format the date and time for the meeting
         const bookingDate = new Date(booking.date);
         const [startHours, startMinutes] = booking.timeSlot.start.split(':');
         const [endHours, endMinutes] = booking.timeSlot.end.split(':');
@@ -464,7 +503,7 @@ const confirmBooking = async (req, res) => {
 
         if (meeting && meeting.hangoutLink) {
           meetingLink = meeting.hangoutLink;
-          break; // If successful, break the retry loop
+          break;
         }
       } catch (error) {
         retryCount++;
@@ -472,35 +511,51 @@ const confirmBooking = async (req, res) => {
         
         if (retryCount === maxRetries) {
           console.error('Failed to create Google Meet meeting after all retries');
-          // Continue with the booking confirmation even if meeting creation fails
           meetingLink = null;
         } else {
-          // Wait for 2 seconds before retrying
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
     }
 
-    // Update booking with meeting link if available
     if (meetingLink) {
+      booking.status = 'confirmed';
       booking.meetingLink = meetingLink;
       await booking.save();
     }
 
-    // Send notifications
     try {
-      // Send email to student
+      // Send email to student with HTML content
       await sendEmail({
         to: booking.student.email,
         subject: 'Booking Confirmed',
-        text: `Your booking for ${booking.subject} has been confirmed. ${meetingLink ? `Join the meeting at: ${meetingLink}` : ''}`
+        html: `
+          <h2>Booking Confirmed!</h2>
+          <p>Your booking for <strong>${booking.subject}</strong> has been confirmed.</p>
+          ${meetingLink ? `
+            <p>Join the meeting at: <a href="${meetingLink}">${meetingLink}</a></p>
+          ` : ''}
+          <p>Date: ${new Date(booking.date).toLocaleDateString()}</p>
+          <p>Time: ${booking.timeSlot.start} - ${booking.timeSlot.end}</p>
+          <p>Thank you for using TutorConnect!</p>
+        `
       });
 
-      // Send email to teacher
+      // Send email to teacher with HTML content
       await sendEmail({
         to: booking.teacher.email,
         subject: 'Booking Confirmed',
-        text: `You have confirmed a booking for ${booking.subject}. ${meetingLink ? `Join the meeting at: ${meetingLink}` : ''}`
+        html: `
+          <h2>Booking Confirmed!</h2>
+          <p>You have confirmed a booking for <strong>${booking.subject}</strong>.</p>
+          ${meetingLink ? `
+            <p>Join the meeting at: <a href="${meetingLink}">${meetingLink}</a></p>
+          ` : ''}
+          <p>Date: ${new Date(booking.date).toLocaleDateString()}</p>
+          <p>Time: ${booking.timeSlot.start} - ${booking.timeSlot.end}</p>
+          <p>Student: ${booking.student.name}</p>
+          <p>Thank you for using TutorConnect!</p>
+        `
       });
     } catch (emailError) {
       console.error('Error sending confirmation emails:', emailError);
@@ -518,7 +573,7 @@ const confirmBooking = async (req, res) => {
         studentName: booking.student?.name || "Unknown",
         studentEmail: booking.student?.email || "N/A",
         status: booking.status,
-        meetingLink
+        meetingLink: booking.meetingLink
       }
     });
 
@@ -587,7 +642,7 @@ const cancelBooking = async (req, res) => {
       _id: bookingId,
       teacher: teacherId,
       status: "confirmed"
-    });
+    }).populate('student', 'name email').populate('teacher', 'name email');
 
     if (!booking) {
       return res.status(404).send({ 
@@ -600,11 +655,12 @@ const cancelBooking = async (req, res) => {
         await deleteGoogleMeetEvent(booking.eventId);
       } catch (error) {
         console.error("Error deleting meeting:", error);
-        // Continue with cancellation even if meeting deletion fails
+        throw error;  
       }
     }
 
-    const cancelledBooking = await BookingModel.findByIdAndUpdate(
+
+      const cancelledBooking = await BookingModel.findByIdAndUpdate(
       bookingId,
       { 
         status: "cancelled",
@@ -612,7 +668,43 @@ const cancelBooking = async (req, res) => {
         eventId: null
       },
       { new: true }
-    ).populate("student", "name email");
+    ).populate("student", "name email").populate("teacher", "name email");
+
+    try {
+      // Send email to student
+      await sendEmail({
+        to: booking.student.email,
+        subject: 'Booking Cancelled',
+        html: `
+          <h2>Booking Cancelled</h2>
+          <p>Your booking for <strong>${booking.subject}</strong> has been cancelled by the teacher.</p>
+          <p>Date: ${new Date(booking.date).toLocaleDateString()}</p>
+          <p>Time: ${booking.timeSlot.start} - ${booking.timeSlot.end}</p>
+          <p>Teacher: ${booking.teacher.name}</p>
+          <p>If you have any questions, please contact your teacher.</p>
+          <p>Thank you for using TutorConnect!</p>
+        `
+      });
+
+      // Send email to teacher
+      await sendEmail({
+        to: booking.teacher.email,
+        subject: 'Booking Cancelled',
+        html: `
+          <h2>Booking Cancelled</h2>
+          <p>You have cancelled the booking for <strong>${booking.subject}</strong>.</p>
+          <p>Date: ${new Date(booking.date).toLocaleDateString()}</p>
+          <p>Time: ${booking.timeSlot.start} - ${booking.timeSlot.end}</p>
+          <p>Student: ${booking.student.name}</p>
+          <p>Thank you for using TutorConnect!</p>
+        `
+      });
+    } catch (emailError) {
+      console.error('Error sending cancellation emails:', emailError);
+      // Continue even if email sending fails
+    }
+
+    
 
     res.status(200).send({ 
       msg: "Booking cancelled",
